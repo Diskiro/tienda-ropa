@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Container, Grid, Typography, Button, Divider, Select, MenuItem, Box, IconButton } from '@mui/material';
 import { AddShoppingCart, FavoriteBorder } from '@mui/icons-material';
+import {products} from '../../data'; // Asegúrate de tener tus productos en este archivo
 
-const products = []; // Todos tus productos
+ // Todos tus productos
 
 export default function ProductPage() {
     const { id } = useParams();

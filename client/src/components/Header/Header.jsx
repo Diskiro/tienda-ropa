@@ -1,7 +1,6 @@
-import { AppBar, Toolbar, IconButton, Badge, Menu, MenuItem, Button } from '@mui/material';
+import { AppBar, Toolbar, IconButton, Badge, Menu, MenuItem, Button, Box } from '@mui/material';
 import { ShoppingCart, WhatsApp, Menu as MenuIcon } from '@mui/icons-material';
 import { Link } from 'react-router-dom';
-import Box  from '@mui/material/Box'; 
 import { useState } from 'react';
 
 const categories = ['Vestidos', 'Blusas', 'Pantalones', 'Accesorios'];
@@ -40,7 +39,7 @@ const Header = () => {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <IconButton
                         color="inherit"
-                        href="https://wa.me/tunumero"
+                        href="https://wa.me/7224992307"
                         target="_blank"
                         sx={{ color: 'success.main' }}
                     >
