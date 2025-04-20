@@ -5,8 +5,8 @@ import HomePage from './pages/Home/HomePage';
 import CatalogPage from './pages/Catalog/Catalog';
 import ProductPage from './pages/Product/Product';
 import CartPage from './pages/Cart/Cart';
-// import CheckoutPage from './pages/Checkout/Checkout';
-// import ConfirmationPage from './pages/Confirmation/Confirmation';
+import CheckoutPage from './pages/Checkout/Checkout';
+import ConfirmationPage from './pages/Confirmation/Confirmation';
 import { Toaster } from 'react-hot-toast';
 
 function App() {
@@ -19,6 +19,8 @@ function App() {
           <Route path="/catalogo" element={<CatalogPage />} />
           <Route path="/producto/:id" element={<ProductPage />} />
           <Route path="/carrito" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/confirmacion" element={<ConfirmationPage />} />
         </Routes>
       </main>
       <Footer />

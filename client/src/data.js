@@ -6,10 +6,19 @@ export const products = [
         price: 49.99,
         category: 'Vestidos',
         sizes: ['S', 'M', 'L'],
-        images: ['/assets/dress1.jpg'],
+        images: ['/assets/logo192.png'],
         featured: true
     },
-    // Agrega más productos según necesites
+    {
+      id: '2',
+      name: 'Blusa Elegante',
+      description: 'Blusa de seda para ocasiones especiales',
+      price: 39.99,
+      category: 'Blusas',
+      sizes: ['XS', 'S', 'M'],
+      images: ['/assets/blusa-elegante.jpg'],
+      stock: 15
+    },
 ];
 
 export const categori = [
