@@ -45,6 +45,28 @@ firebase-debug.*.log*
 # Firebase cache
 .firebase/
 
+# Firebase debug logs
+firebase-debug.log*
+firebase-debug.*.log*
+
+# Firebase emulators data
+firebase-export-metadata.json
+firebase-debug.log
+firebase-debug.*.log
+
+# Firebase hosting cache
+firebase-hosting-cache.json
+# Firebase hosting files
+firebase-hosting-files.json
+# Firebase hosting logs
+firebase-hosting-logs.json
+
+#github
+.github/*
+!.github/workflows
+# Ignore all files in the .github/workflows directory
+.github/workflows/*
+
 # Firebase config
 
 # Uncomment this if you'd like others to create their own Firebase project.
@@ -127,3 +149,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+node_modules/
+*.local

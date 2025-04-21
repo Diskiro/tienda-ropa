@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@mui/x-data-grid": "^8.0.0",
+    "chart.js": "^4.4.9",
+    "prop-types": "^15.8.1",
+    "react-chartjs-2": "^5.3.0",
+    "react-icons": "^5.5.0"
+  }
+}
