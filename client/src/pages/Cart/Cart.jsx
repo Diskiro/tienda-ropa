@@ -1,114 +1,137 @@
-import { Container, Grid, Typography, Button, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Divider, Box } from '@mui/material';
-import { Delete, Add, Remove } from '@mui/icons-material';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+    Container,
+    Typography,
+    Box,
+    Button,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    IconButton,
+    Grid
+} from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import { useCart } from '../../context/CartContext';
+import { formatPrice } from '../../utils/priceUtils';
 
-const cartItems = ["ola"]; // Tus items del carrito
+const Cart = () => {
+    const { cart, removeFromCart, updateQuantity, getTotalPrice } = useCart();
+    const navigate = useNavigate();
 
-export default function CartPage() {
-    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const shipping = subtotal > 100 ? 0 : 15;
-    const total = subtotal + shipping;
+    const handleCheckout = () => {
+        navigate('/checkout');
+    };
 
-    return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Typography variant="h3" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Tu Carrito
-            </Typography>
-
-            {cartItems.length === 0 ? (
-                <Box textAlign="center" sx={{ py: 8 }}>
+    if (cart.length === 0) {
+        return (
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Box textAlign="center">
                     <Typography variant="h5" gutterBottom>
                         Tu carrito está vacío
                     </Typography>
-                    <Button variant="contained" href="/catalogo">
-                        Continuar comprando
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => navigate('/catalogo')}
+                    >
+                        Ver productos
                     </Button>
                 </Box>
-            ) : (
-                <Grid container spacing={4}>
-                    <Grid item xs={12} md={8}>
-                        <TableContainer component={Paper}>
-                            <Table>
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>Producto</TableCell>
-                                        <TableCell align="center">Talla</TableCell>
-                                        <TableCell align="center">Cantidad</TableCell>
-                                        <TableCell align="right">Precio</TableCell>
-                                        <TableCell align="right"></TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {cartItems.map((item) => (
-                                        <TableRow key={item.id}>
-                                            <TableCell>
-                                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                    <img
-                                                        src={item.image}
-                                                        alt={item.name}
-                                                        style={{ width: '60px', marginRight: '16px' }}
-                                                    />
-                                                    <Typography>{item.name}</Typography>
-                                                </Box>
-                                            </TableCell>
-                                            <TableCell align="center">{item.size}</TableCell>
-                                            <TableCell align="center">
-                                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                                    <IconButton size="small">
-                                                        <Remove />
-                                                    </IconButton>
-                                                    <Typography sx={{ mx: 1 }}>{item.quantity}</Typography>
-                                                    <IconButton size="small">
-                                                        <Add />
-                                                    </IconButton>
-                                                </Box>
-                                            </TableCell>
-                                            <TableCell align="right">${(item.price * item.quantity).toFixed(2)}</TableCell>
-                                            <TableCell align="right">
-                                                <IconButton>
-                                                    <Delete />
-                                                </IconButton>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+            </Container>
+        );
+    }
+
+    return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            <Typography variant="h4" gutterBottom>
+                Carrito de Compras
+            </Typography>
+
+            <TableContainer component={Paper}>
+                <Table>
+                    <TableHead>
+                        <TableRow>
+                            <TableCell>Producto</TableCell>
+                            <TableCell>Talla</TableCell>
+                            <TableCell align="right">Precio</TableCell>
+                            <TableCell align="right">Cantidad</TableCell>
+                            <TableCell align="right">Subtotal</TableCell>
+                            <TableCell align="right">Acciones</TableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {cart.map((item) => (
+                            <TableRow key={`${item.id}-${item.size}`}>
+                                <TableCell>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <img
+                                            src={item.image}
+                                            alt={item.name}
+                                            style={{ width: 50, height: 50, marginRight: 10 }}
+                                        />
+                                        <Typography>{item.name}</Typography>
+                                    </Box>
+                                </TableCell>
+                                <TableCell>{item.size}</TableCell>
+                                <TableCell align="right">{formatPrice(item.price)}</TableCell>
+                                <TableCell align="right">
+                                    <Button
+                                        size="small"
+                                        onClick={() => updateQuantity(item.id, item.size, item.quantity - 1)}
+                                    >
+                                        -
+                                    </Button>
+                                    {item.quantity}
+                                    <Button
+                                        size="small"
+                                        onClick={() => updateQuantity(item.id, item.size, item.quantity + 1)}
+                                    >
+                                        +
+                                    </Button>
+                                </TableCell>
+                                <TableCell align="right">
+                                    {formatPrice(item.price * item.quantity)}
+                                </TableCell>
+                                <TableCell align="right">
+                                    <IconButton
+                                        color="error"
+                                        onClick={() => removeFromCart(item.id, item.size)}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TableContainer>
+
+            <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
+                <Grid container spacing={2} justifyContent="flex-end">
+                    <Grid item>
+                        <Typography variant="h6">
+                            Total: {formatPrice(getTotalPrice())}
+                        </Typography>
                     </Grid>
-
-                    <Grid item xs={12} md={4}>
-                        <Paper sx={{ p: 3 }}>
-                            <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                                Resumen del pedido
-                            </Typography>
-
-                            <Box sx={{ my: 2 }}>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                    <Typography>Subtotal:</Typography>
-                                    <Typography>${subtotal.toFixed(2)}</Typography>
-                                </Box>
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                    <Typography>Envío:</Typography>
-                                    <Typography>${shipping.toFixed(2)}</Typography>
-                                </Box>
-                                <Divider sx={{ my: 2 }} />
-                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <Typography variant="h6">Total:</Typography>
-                                    <Typography variant="h6">${total.toFixed(2)}</Typography>
-                                </Box>
-                            </Box>
-
-                            <Button
-                                variant="contained"
-                                fullWidth
-                                size="large"
-                                href="/checkout"
-                            >
-                                Proceder al pago
-                            </Button>
-                        </Paper>
+                    <Grid item>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            size="large"
+                            onClick={handleCheckout}
+                        >
+                            Proceder al Pago
+                        </Button>
                     </Grid>
                 </Grid>
-            )}
+            </Box>
         </Container>
     );
-}
+};
+
+export default Cart;

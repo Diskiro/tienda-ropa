@@ -1,18 +1,107 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Container, Grid, Typography, Button, Divider, Select, MenuItem, Box, IconButton } from '@mui/material';
+import { Container, Grid, Typography, Button, Divider, Select, MenuItem, Box, IconButton, CircularProgress, TextField, Snackbar, Alert, FormControl, InputLabel } from '@mui/material';
 import { AddShoppingCart, FavoriteBorder } from '@mui/icons-material';
-import {products} from '../../data'; // Asegúrate de tener tus productos en este archivo
-
- // Todos tus productos
+import { db } from '../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { formatPrice } from '../../utils/priceUtils';
+import { useCart } from '../../context/CartContext';
 
 export default function ProductPage() {
     const { id } = useParams();
-    const product = products.find(p => p.id === id);
+    const { addToCart } = useCart();
+    const [product, setProduct] = useState(null);
+    const [loading, setLoading] = useState(true);
     const [selectedSize, setSelectedSize] = useState('');
     const [quantity, setQuantity] = useState(1);
+    const [maxQuantity, setMaxQuantity] = useState(1);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
-    if (!product) return <div>Producto no encontrado</div>;
+    useEffect(() => {
+        const fetchProduct = async () => {
+            try {
+                const docRef = doc(db, 'products', id);
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    setProduct({ id: docSnap.id, ...docSnap.data() });
+                } else {
+                    console.log('No such document!');
+                }
+            } catch (error) {
+                console.error('Error fetching product:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProduct();
+    }, [id]);
+
+    useEffect(() => {
+        if (selectedSize && product?.inventory) {
+            const availableQuantity = product.inventory[selectedSize] || 0;
+            setMaxQuantity(availableQuantity);
+            // Si la cantidad actual es mayor que el nuevo máximo, ajustarla
+            if (quantity > availableQuantity) {
+                setQuantity(availableQuantity);
+            }
+        } else {
+            setMaxQuantity(0);
+            setQuantity(1);
+        }
+    }, [selectedSize, product, quantity]);
+
+    const handleQuantityChange = (event) => {
+        const newQuantity = parseInt(event.target.value);
+        if (newQuantity >= 1 && newQuantity <= maxQuantity) {
+            setQuantity(newQuantity);
+        }
+    };
+
+    const handleAddToCart = () => {
+        if (!selectedSize) {
+            setSnackbar({
+                open: true,
+                message: 'Por favor selecciona una talla',
+                severity: 'error'
+            });
+            return;
+        }
+
+        if (quantity > maxQuantity) {
+            setSnackbar({
+                open: true,
+                message: `Solo hay ${maxQuantity} unidades disponibles`,
+                severity: 'error'
+            });
+            return;
+        }
+
+        addToCart(product, quantity, selectedSize);
+        setSnackbar({
+            open: true,
+            message: 'Producto agregado al carrito',
+            severity: 'success'
+        });
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
+
+    if (loading) return (
+        <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+            <CircularProgress />
+        </Container>
+    );
+
+    if (!product) return null;
+
+    const formattedPrice = formatPrice(product.price);
+    const mainImage = product.images?.[0] || '/assets/placeholder.jpg';
+    const additionalImages = product.images?.slice(1, 5) || [];
+    const availableSizes = product.sizes?.filter(size => product.inventory?.[size] > 0) || [];
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -21,84 +110,119 @@ export default function ProductPage() {
                 <Grid item xs={12} md={6}>
                     <Box sx={{ borderRadius: '8px', overflow: 'hidden' }}>
                         <img
-                            src={product.images[0]}
+                            src={mainImage}
                             alt={product.name}
                             style={{ width: '100%', display: 'block' }}
                         />
                     </Box>
-                    <Grid container spacing={1} sx={{ mt: 1 }}>
-                        {product.images.slice(0, 4).map((img, index) => (
-                            <Grid item xs={3} key={index}>
-                                <img
-                                    src={img}
-                                    alt={`Vista ${index + 1}`}
-                                    style={{ width: '100%', borderRadius: '4px', cursor: 'pointer' }}
-                                />
-                            </Grid>
-                        ))}
-                    </Grid>
+                    {additionalImages.length > 0 && (
+                        <Grid container spacing={1} sx={{ mt: 1 }}>
+                            {additionalImages.map((img, index) => (
+                                <Grid item xs={3} key={index}>
+                                    <img
+                                        src={img}
+                                        alt={`Vista ${index + 1}`}
+                                        style={{ width: '100%', borderRadius: '4px', cursor: 'pointer' }}
+                                    />
+                                </Grid>
+                            ))}
+                        </Grid>
+                    )}
                 </Grid>
 
                 {/* Información del producto */}
                 <Grid item xs={12} md={6}>
-                    <Typography variant="h3" sx={{ fontWeight: 'bold' }}>
+                    <Typography variant="h4" gutterBottom>
                         {product.name}
                     </Typography>
-                    <Typography variant="h5" sx={{ my: 2, color: 'primary.main' }}>
-                        ${product.price.toFixed(2)}
+                    <Typography variant="h5" color="primary" gutterBottom>
+                        {formattedPrice}
+                    </Typography>
+                    <Typography variant="body1" paragraph>
+                        {product.description}
                     </Typography>
 
-                    <Divider sx={{ my: 3 }} />
+                    <Divider sx={{ my: 2 }} />
 
-                    <Typography paragraph>{product.description}</Typography>
+                    {/* Tallas */}
+                    {product.sizes && product.sizes.length > 0 && (
+                        <Box sx={{ mb: 2 }}>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Talla
+                            </Typography>
+                            <FormControl fullWidth>
+                                <InputLabel>Talla</InputLabel>
+                                <Select
+                                    value={selectedSize}
+                                    onChange={(e) => setSelectedSize(e.target.value)}
+                                    label="Talla"
+                                >
+                                    <MenuItem value="">
+                                        <em>Selecciona una talla</em>
+                                    </MenuItem>
+                                    {availableSizes.map((size) => (
+                                        <MenuItem key={size} value={size}>
+                                            {size} ({product.inventory[size]} disponibles)
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
+                        </Box>
+                    )}
 
-                    {/* Selector de tallas */}
-                    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-                        Talla:
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
-                        {product.sizes.map(size => (
-                            <Button
-                                key={size}
-                                variant={selectedSize === size ? 'contained' : 'outlined'}
-                                onClick={() => setSelectedSize(size)}
-                            >
-                                {size}
-                            </Button>
-                        ))}
-                    </Box>
-
-                    {/* Selector de cantidad */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
-                        <Typography variant="h6">Cantidad:</Typography>
-                        <Select
+                    {/* Cantidad */}
+                    <Box sx={{ mb: 3 }}>
+                        <Typography variant="subtitle1" gutterBottom>
+                            Cantidad
+                        </Typography>
+                        <TextField
+                            type="number"
                             value={quantity}
-                            onChange={(e) => setQuantity(e.target.value)}
-                            sx={{ minWidth: 80 }}
-                        >
-                            {[1, 2, 3, 4, 5].map(num => (
-                                <MenuItem key={num} value={num}>{num}</MenuItem>
-                            ))}
-                        </Select>
+                            onChange={handleQuantityChange}
+                            inputProps={{ 
+                                min: 1,
+                                max: maxQuantity,
+                                step: 1
+                            }}
+                            fullWidth
+                            disabled={!selectedSize || maxQuantity === 0}
+                        />
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            {selectedSize 
+                                ? `${maxQuantity} disponibles` 
+                                : 'Selecciona una talla'}
+                        </Typography>
                     </Box>
 
                     {/* Botones de acción */}
                     <Box sx={{ display: 'flex', gap: 2 }}>
+                        <IconButton aria-label="add to favorites" color="secondary" size="large">
+                            <FavoriteBorder />
+                        </IconButton>
                         <Button
                             variant="contained"
                             size="large"
                             startIcon={<AddShoppingCart />}
-                            disabled={!selectedSize}
-                            sx={{ flexGrow: 1 }}
+                            fullWidth
+                            onClick={handleAddToCart}
+                            disabled={!selectedSize || maxQuantity === 0}
                         >
-                            Añadir al carrito
+                            {maxQuantity === 0 ? 'Sin stock' : 'Añadir al carrito'}
                         </Button>
-                        <IconButton size="large">
-                            <FavoriteBorder />
-                        </IconButton>
                     </Box>
                 </Grid>
             </Grid>
+
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 }

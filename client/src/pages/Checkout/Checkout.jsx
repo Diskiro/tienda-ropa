@@ -17,6 +17,7 @@ import {
     StepLabel
 } from '@mui/material';
 import { Link } from 'react-router-dom';
+import { formatPrice } from '../../utils/priceUtils';
 
 const steps = ['Envío', 'Pago', 'Revisión'];
 
@@ -24,6 +25,18 @@ export default function CheckoutPage() {
     const [activeStep, setActiveStep] = useState(0);
     const [paymentMethod, setPaymentMethod] = useState('credit-card');
     const [shippingSameAsBilling, setShippingSameAsBilling] = useState(true);
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        address: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        cardNumber: '',
+        cardName: '',
+        expiryDate: '',
+        cvv: ''
+    });
 
     const handleNext = () => {
         setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -37,14 +50,28 @@ export default function CheckoutPage() {
         setPaymentMethod(event.target.value);
     };
 
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        // Aquí iría la lógica para procesar el pago
+        console.log('Procesando pago...', formData);
+    };
+
     // Datos simulados del carrito
     const cartItems = [
-        { id: 1, name: 'Vestido floral', price: 59.99, quantity: 1, size: 'M' },
-        { id: 2, name: 'Blusa de seda', price: 39.99, quantity: 2, size: 'S' }
+        { id: 1, name: 'Vestido floral', price: 599.99, quantity: 1, size: 'M' },
+        { id: 2, name: 'Blusa de seda', price: 399.99, quantity: 2, size: 'S' }
     ];
 
     const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const shipping = 15.00;
+    const shipping = 99.99;
     const tax = subtotal * 0.08;
     const total = subtotal + shipping + tax;
 
@@ -75,15 +102,22 @@ export default function CheckoutPage() {
                                         label="Nombre"
                                         variant="outlined"
                                         margin="normal"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleChange}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
                                     <TextField
                                         required
                                         fullWidth
-                                        label="Apellido"
+                                        label="Correo electrónico"
                                         variant="outlined"
                                         margin="normal"
+                                        name="email"
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={handleChange}
                                     />
                                 </Grid>
                                 <Grid item xs={12}>
@@ -93,6 +127,9 @@ export default function CheckoutPage() {
                                         label="Dirección"
                                         variant="outlined"
                                         margin="normal"
+                                        name="address"
+                                        value={formData.address}
+                                        onChange={handleChange}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -102,6 +139,9 @@ export default function CheckoutPage() {
                                         label="Ciudad"
                                         variant="outlined"
                                         margin="normal"
+                                        name="city"
+                                        value={formData.city}
+                                        onChange={handleChange}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -111,6 +151,9 @@ export default function CheckoutPage() {
                                         label="Estado/Provincia"
                                         variant="outlined"
                                         margin="normal"
+                                        name="state"
+                                        value={formData.state}
+                                        onChange={handleChange}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -120,6 +163,9 @@ export default function CheckoutPage() {
                                         label="Código postal"
                                         variant="outlined"
                                         margin="normal"
+                                        name="zipCode"
+                                        value={formData.zipCode}
+                                        onChange={handleChange}
                                     />
                                 </Grid>
                                 <Grid item xs={12} sm={6}>
@@ -127,15 +173,6 @@ export default function CheckoutPage() {
                                         required
                                         fullWidth
                                         label="Teléfono"
-                                        variant="outlined"
-                                        margin="normal"
-                                    />
-                                </Grid>
-                                <Grid item xs={12}>
-                                    <TextField
-                                        required
-                                        fullWidth
-                                        label="Correo electrónico"
                                         variant="outlined"
                                         margin="normal"
                                     />
@@ -178,6 +215,9 @@ export default function CheckoutPage() {
                                                     label="Número de tarjeta"
                                                     variant="outlined"
                                                     margin="normal"
+                                                    name="cardNumber"
+                                                    value={formData.cardNumber}
+                                                    onChange={handleChange}
                                                 />
                                             </Grid>
                                             <Grid item xs={12} sm={6}>
@@ -187,6 +227,9 @@ export default function CheckoutPage() {
                                                     label="Nombre en la tarjeta"
                                                     variant="outlined"
                                                     margin="normal"
+                                                    name="cardName"
+                                                    value={formData.cardName}
+                                                    onChange={handleChange}
                                                 />
                                             </Grid>
                                             <Grid item xs={6} sm={3}>
@@ -197,6 +240,9 @@ export default function CheckoutPage() {
                                                     placeholder="MM/AA"
                                                     variant="outlined"
                                                     margin="normal"
+                                                    name="expiryDate"
+                                                    value={formData.expiryDate}
+                                                    onChange={handleChange}
                                                 />
                                             </Grid>
                                             <Grid item xs={6} sm={3}>
@@ -206,6 +252,9 @@ export default function CheckoutPage() {
                                                     label="CVV"
                                                     variant="outlined"
                                                     margin="normal"
+                                                    name="cvv"
+                                                    value={formData.cvv}
+                                                    onChange={handleChange}
                                                 />
                                             </Grid>
                                         </Grid>
@@ -241,19 +290,19 @@ export default function CheckoutPage() {
                                 Dirección de envío:
                             </Typography>
                             <Typography paragraph>
-                                Juan Pérez<br />
-                                Calle Falsa 123<br />
-                                Ciudad de México, CDMX 03810<br />
+                                {formData.name}<br />
+                                {formData.address}<br />
+                                {formData.city}, {formData.state} {formData.zipCode}<br />
                                 México<br />
                                 Tel: 55 1234 5678<br />
-                                juan.perez@example.com
+                                {formData.email}
                             </Typography>
 
                             <Typography variant="subtitle1" sx={{ mt: 2, fontWeight: 'bold' }}>
                                 Método de pago:
                             </Typography>
                             <Typography paragraph>
-                                Tarjeta de crédito terminada en 4242
+                                {paymentMethod === 'credit-card' ? 'Tarjeta de crédito terminada en ' + formData.cardNumber.slice(-4) : ''}
                             </Typography>
                         </Paper>
                     )}
@@ -273,6 +322,7 @@ export default function CheckoutPage() {
                                 color="primary"
                                 component={Link}
                                 to="/confirmacion"
+                                onClick={handleSubmit}
                             >
                                 Confirmar pedido
                             </Button>
@@ -301,7 +351,7 @@ export default function CheckoutPage() {
                                     {item.name} ({item.size}) × {item.quantity}
                                 </Typography>
                                 <Typography>
-                                    ${(item.price * item.quantity).toFixed(2)}
+                                    {formatPrice(item.price * item.quantity)}
                                 </Typography>
                             </Box>
                         ))}
@@ -310,22 +360,22 @@ export default function CheckoutPage() {
 
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography>Subtotal:</Typography>
-                            <Typography>${subtotal.toFixed(2)}</Typography>
+                            <Typography>{formatPrice(subtotal)}</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography>Envío:</Typography>
-                            <Typography>${shipping.toFixed(2)}</Typography>
+                            <Typography>{formatPrice(shipping)}</Typography>
                         </Box>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                             <Typography>Impuestos:</Typography>
-                            <Typography>${tax.toFixed(2)}</Typography>
+                            <Typography>{formatPrice(tax)}</Typography>
                         </Box>
 
                         <Divider sx={{ my: 2 }} />
 
                         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                             <Typography variant="h6">Total:</Typography>
-                            <Typography variant="h6">${total.toFixed(2)}</Typography>
+                            <Typography variant="h6">{formatPrice(total)}</Typography>
                         </Box>
 
                         <Typography variant="body2" sx={{ mt: 2, fontStyle: 'italic' }}>
