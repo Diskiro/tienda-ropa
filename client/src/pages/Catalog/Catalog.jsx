@@ -1,70 +1,86 @@
-import { useState } from 'react';
-import { Container, Grid, Typography, Box, Select, MenuItem, FormControl, InputLabel } from '@mui/material';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Container, Grid, Typography, Box, CircularProgress } from '@mui/material';
 import ProductCard from '../../components/ProductCard/ProductCard';
-
-const allProducts = ["hola"]; // Todos tus productos
+import { db } from '../../firebase';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { normalizeCategoryName } from '../../utils/categoryUtils';
+import { formatPrice } from '../../utils/priceUtils';
 
 export default function CatalogPage() {
-    const [filter, setFilter] = useState('all');
-    const [sort, setSort] = useState('newest');
+    const [searchParams] = useSearchParams();
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const filteredProducts = allProducts.filter(product =>
-        filter === 'all' || product.category === filter
-    );
+    useEffect(() => {
+        const fetchProducts = async () => {
+            try {
+                setLoading(true);
+                const categoryFromUrl = searchParams.get('category');
+                
+                if (!categoryFromUrl) {
+                    console.error('No se proporcionó una categoría');
+                    setProducts([]);
+                    return;
+                }
 
-    const sortedProducts = [...filteredProducts].sort((a, b) => {
-        if (sort === 'price-low') return a.price - b.price;
-        if (sort === 'price-high') return b.price - a.price;
-        return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+                // Construir la consulta base
+                let productsQuery = collection(db, 'products');
+                
+                // Filtrar por categoría
+                const normalizedCategory = normalizeCategoryName(categoryFromUrl);
+                productsQuery = query(productsQuery, where('category', '==', normalizedCategory));
 
-    const categories = [...new Set(allProducts.map(product => product.category))];
+                const querySnapshot = await getDocs(productsQuery);
+                const productsList = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    formattedPrice: formatPrice(doc.data().price)
+                }));
+                
+                console.log('Productos encontrados:', productsList); // Para debugging
+                setProducts(productsList);
+            } catch (error) {
+                console.error('Error al obtener los productos:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProducts();
+    }, [searchParams]);
+
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
 
     return (
         <Container maxWidth="xl" sx={{ py: 4 }}>
             <Typography variant="h3" gutterBottom sx={{ fontWeight: 'bold' }}>
-                Nuestro Catálogo
+                {searchParams.get('category') 
+                    ? `${normalizeCategoryName(searchParams.get('category'))}`
+                    : 'Catálogo'}
             </Typography>
-
-            {/* Filtros y ordenamiento */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-                <FormControl sx={{ minWidth: 180 }}>
-                    <InputLabel>Categoría</InputLabel>
-                    <Select
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        label="Categoría"
-                    >
-                        <MenuItem value="all">Todas</MenuItem>
-                        {categories.map(category => (
-                            <MenuItem key={category} value={category}>
-                                {category}
-                            </MenuItem>
-                        ))}
-                    </Select>
-                </FormControl>
-
-                <FormControl sx={{ minWidth: 180 }}>
-                    <InputLabel>Ordenar por</InputLabel>
-                    <Select
-                        value={sort}
-                        onChange={(e) => setSort(e.target.value)}
-                        label="Ordenar por"
-                    >
-                        <MenuItem value="newest">Novedades</MenuItem>
-                        <MenuItem value="price-low">Precio: menor a mayor</MenuItem>
-                        <MenuItem value="price-high">Precio: mayor a menor</MenuItem>
-                    </Select>
-                </FormControl>
-            </Box>
 
             {/* Lista de productos */}
             <Grid container spacing={3}>
-                {sortedProducts.map(product => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
-                        <ProductCard product={product} />
+                {products.length > 0 ? (
+                    products.map(product => (
+                        <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+                            <ProductCard product={product} />
+                        </Grid>
+                    ))
+                ) : (
+                    <Grid item xs={12}>
+                        <Typography variant="body1" color="text.secondary">
+                            No hay productos disponibles en esta categoría
+                        </Typography>
                     </Grid>
-                ))}
+                )}
             </Grid>
         </Container>
     );

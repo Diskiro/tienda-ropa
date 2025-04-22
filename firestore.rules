@@ -2,8 +2,39 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    // Función temporal para verificar administradores
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // Reglas para la colección de productos
+    match /products/{document=**} {
+      allow read: if true;  // Cualquiera puede leer productos
+      allow write: if true;  // Temporalmente permitir escritura
+    }
+
+    // Reglas para la colección de categorías
+    match /categories/{document=**} {
+      allow read: if true;  // Cualquiera puede leer categorías
+      allow write: if true;  // Temporalmente permitir escritura
+    }
+
+    // Reglas para la colección de órdenes
+    match /orders/{document=**} {
+      allow read: if true;  // Temporalmente permitir lectura
+      allow write: if true;  // Temporalmente permitir escritura
+    }
+
+    // Reglas para la colección de usuarios de la tienda
+    match /storeUsers/{document=**} {
+      allow read: if true;  // Temporalmente permitir lectura
+      allow write: if true;  // Temporalmente permitir escritura
+    }
+
+    // Reglas para la colección de administradores
+    match /adminUsers/{document=**} {
+      allow read: if true;  // Temporalmente permitir lectura
+      allow write: if true;  // Temporalmente permitir escritura
     }
   }
 }

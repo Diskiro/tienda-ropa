@@ -1,12 +1,39 @@
+import { useState, useEffect } from 'react';
 import { Container, Grid, Typography, Button } from '@mui/material';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import CategoryCard from '../../components/CategoryCard/CategoryCard';
-import {products} from '../../data'; // Asegúrate de que la ruta sea correcta
-
-const featuredProducts = [products]; // Tus productos destacados 
-const categories = ["Vestido","rpa"]; // Tus categorías
+import { fetchProducts, fetchCategories } from '../../data';
 
 export default function HomePage() {
+    const [featuredProducts, setFeaturedProducts] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const [productsData, categoriesData] = await Promise.all([
+                    fetchProducts(),
+                    fetchCategories()
+                ]);
+                // Filtrar productos destacados
+                const featured = productsData.filter(product => product.featured);
+                setFeaturedProducts(featured);
+                setCategories(categoriesData);
+                setLoading(false);
+            } catch (err) {
+                setError('Error al cargar los datos');
+                setLoading(false);
+            }
+        };
+
+        loadData();
+    }, []);
+
+    if (loading) return <div>Cargando...</div>;
+    if (error) return <div>{error}</div>;
+
     return (
         <Container maxWidth="xl">
             {/* Banner promocional */}
@@ -35,7 +62,7 @@ export default function HomePage() {
             <Grid container spacing={3}>
                 {categories.map(category => (
                     <Grid item xs={12} sm={6} md={4} key={category.id}>
-                        <CategoryCard category={category} /> 
+                        <CategoryCard category={category} />
                     </Grid>
                 ))}
             </Grid>

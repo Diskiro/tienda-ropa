@@ -1,3 +1,32 @@
+import { db } from './firebase';
+import { collection, getDocs } from 'firebase/firestore';
+
+export const fetchProducts = async () => {
+    try {
+        const productsSnapshot = await getDocs(collection(db, 'products'));
+        return productsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error fetching products:', error);
+        return [];
+    }
+};
+
+export const fetchCategories = async () => {
+    try {
+        const categoriesSnapshot = await getDocs(collection(db, 'categories'));
+        return categoriesSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        return [];
+    }
+};
+
 export const products = [
     {
         id: '1',
