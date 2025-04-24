@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Box,
@@ -26,6 +26,8 @@ import {
 } from '@mui/icons-material';
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
+import { useNavigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 
 const drawerWidth = 240;
 
@@ -38,9 +40,10 @@ const menuItems = [
   { text: 'Usuarios', icon: <PeopleIcon />, path: '/users' },
 ];
 
-function Layout({ children }) {
+function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -63,7 +66,9 @@ function Layout({ children }) {
           <ListItem
             button
             key={item.text}
-            onClick={() => navigate(item.path)}
+            component={Link}
+            to={item.path}
+            selected={location.pathname === item.path}
           >
             <ListItemIcon>{item.icon}</ListItemIcon>
             <ListItemText primary={item.text} />
@@ -143,7 +148,7 @@ function Layout({ children }) {
         }}
       >
         <Toolbar />
-        {children}
+        <Outlet />
       </Box>
     </Box>
   );

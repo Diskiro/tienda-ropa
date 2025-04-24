@@ -9,7 +9,7 @@ import { useCart } from '../../context/CartContext';
 
 export default function ProductPage() {
     const { id } = useParams();
-    const { addToCart } = useCart();
+    const { addMultipleToCart } = useCart();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedSize, setSelectedSize] = useState('');
@@ -59,7 +59,7 @@ export default function ProductPage() {
         }
     };
 
-    const handleAddToCart = () => {
+    const handleAddToCart = async () => {
         if (!selectedSize) {
             setSnackbar({
                 open: true,
@@ -78,12 +78,20 @@ export default function ProductPage() {
             return;
         }
 
-        addToCart(product, quantity, selectedSize);
-        setSnackbar({
-            open: true,
-            message: 'Producto agregado al carrito',
-            severity: 'success'
-        });
+        try {
+            await addMultipleToCart(product, selectedSize, quantity);
+            setSnackbar({
+                open: true,
+                message: 'Producto agregado al carrito',
+                severity: 'success'
+            });
+        } catch (error) {
+            setSnackbar({
+                open: true,
+                message: error.message,
+                severity: 'error'
+            });
+        }
     };
 
     const handleCloseSnackbar = () => {
@@ -101,114 +109,138 @@ export default function ProductPage() {
     const formattedPrice = formatPrice(product.price);
     const mainImage = product.images?.[0] || '/assets/placeholder.jpg';
     const additionalImages = product.images?.slice(1, 5) || [];
-    const availableSizes = product.sizes?.filter(size => product.inventory?.[size] > 0) || [];
+    
+    // Modificar la forma en que se obtienen las tallas disponibles
+    const availableSizes = product.sizes
+        ?.map(size => {
+            // Extraer solo la talla del formato "ID__TALLA"
+            const sizeOnly = size.split('__')[1];
+            // Usar la talla sin ID para buscar en el inventario
+            const stock = product.inventory?.[sizeOnly] || 0;
+            return {
+                size: sizeOnly,
+                stock: stock
+            };
+        })
+        .filter(item => item.stock > 0)
+        .map(item => item.size) || [];
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
             <Grid container spacing={4}>
                 {/* Galería de imágenes */}
-                <Grid item xs={12} md={6}>
-                    <Box sx={{ borderRadius: '8px', overflow: 'hidden' }}>
+                <Grid item xs={12} md={6} sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'flex-start'
+                }}>
+                    <Box sx={{ 
+                        width: '100%',
+                        maxWidth: '600px',
+                        '@media (min-width: 769px)': {
+                            aspectRatio: '3/4',
+                            overflow: 'hidden'
+                        }
+                    }}>
                         <img
                             src={mainImage}
                             alt={product.name}
-                            style={{ width: '100%', display: 'block' }}
+                            style={{ 
+                                width: '100%',
+                                height: '100%',
+                                display: 'block',
+                                objectFit: 'cover'
+                            }}
                         />
                     </Box>
-                    {additionalImages.length > 0 && (
-                        <Grid container spacing={1} sx={{ mt: 1 }}>
-                            {additionalImages.map((img, index) => (
-                                <Grid item xs={3} key={index}>
-                                    <img
-                                        src={img}
-                                        alt={`Vista ${index + 1}`}
-                                        style={{ width: '100%', borderRadius: '4px', cursor: 'pointer' }}
-                                    />
-                                </Grid>
-                            ))}
-                        </Grid>
-                    )}
                 </Grid>
 
                 {/* Información del producto */}
                 <Grid item xs={12} md={6}>
-                    <Typography variant="h4" gutterBottom>
-                        {product.name}
-                    </Typography>
-                    <Typography variant="h5" color="primary" gutterBottom>
-                        {formattedPrice}
-                    </Typography>
-                    <Typography variant="body1" paragraph>
-                        {product.description}
-                    </Typography>
+                    <Box sx={{ 
+                        maxWidth: '400px',
+                        '@media (min-width: 769px)': {
+                            margin: '0 auto'
+                        }
+                    }}>
+                        <Typography variant="h4" gutterBottom>
+                            {product.name}
+                        </Typography>
+                        <Typography variant="h5" color="primary" gutterBottom>
+                            {formattedPrice}
+                        </Typography>
+                        <Typography variant="body1" paragraph>
+                            {product.description}
+                        </Typography>
 
-                    <Divider sx={{ my: 2 }} />
+                        <Divider sx={{ my: 2 }} />
 
-                    {/* Tallas */}
-                    {product.sizes && product.sizes.length > 0 && (
-                        <Box sx={{ mb: 2 }}>
-                            <Typography variant="subtitle1" gutterBottom>
-                                Talla
-                            </Typography>
-                            <FormControl fullWidth>
-                                <InputLabel>Talla</InputLabel>
-                                <Select
-                                    value={selectedSize}
-                                    onChange={(e) => setSelectedSize(e.target.value)}
-                                    label="Talla"
-                                >
-                                    <MenuItem value="">
-                                        <em>Selecciona una talla</em>
-                                    </MenuItem>
-                                    {availableSizes.map((size) => (
-                                        <MenuItem key={size} value={size}>
-                                            {size} ({product.inventory[size]} disponibles)
+                        {/* Tallas */}
+                        {product.sizes && product.sizes.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                                <Typography variant="subtitle1" gutterBottom>
+                                    Talla
+                                </Typography>
+                                <FormControl fullWidth>
+                                    <InputLabel>Talla</InputLabel>
+                                    <Select
+                                        value={selectedSize}
+                                        onChange={(e) => setSelectedSize(e.target.value)}
+                                        label="Talla"
+                                    >
+                                        <MenuItem value="">
+                                            <em>Selecciona una talla</em>
                                         </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
+                                        {availableSizes.map((size) => (
+                                            <MenuItem key={size} value={size}>
+                                                {size} ({product.inventory[size]} disponibles)
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
+                        )}
+
+                        {/* Cantidad */}
+                        <Box sx={{ mb: 3 }}>
+                            <Typography variant="subtitle1" gutterBottom>
+                                Cantidad
+                            </Typography>
+                            <TextField
+                                type="number"
+                                value={quantity}
+                                onChange={handleQuantityChange}
+                                inputProps={{ 
+                                    min: 1,
+                                    max: maxQuantity,
+                                    step: 1
+                                }}
+                                fullWidth
+                                disabled={!selectedSize || maxQuantity === 0}
+                            />
+                            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                                {selectedSize 
+                                    ? `${maxQuantity} disponibles` 
+                                    : 'Selecciona una talla'}
+                            </Typography>
                         </Box>
-                    )}
 
-                    {/* Cantidad */}
-                    <Box sx={{ mb: 3 }}>
-                        <Typography variant="subtitle1" gutterBottom>
-                            Cantidad
-                        </Typography>
-                        <TextField
-                            type="number"
-                            value={quantity}
-                            onChange={handleQuantityChange}
-                            inputProps={{ 
-                                min: 1,
-                                max: maxQuantity,
-                                step: 1
-                            }}
-                            fullWidth
-                            disabled={!selectedSize || maxQuantity === 0}
-                        />
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                            {selectedSize 
-                                ? `${maxQuantity} disponibles` 
-                                : 'Selecciona una talla'}
-                        </Typography>
-                    </Box>
-
-                    {/* Botones de acción */}
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                        <IconButton aria-label="add to favorites" color="secondary" size="large">
-                            <FavoriteBorder />
-                        </IconButton>
-                        <Button
-                            variant="contained"
-                            size="large"
-                            startIcon={<AddShoppingCart />}
-                            fullWidth
-                            onClick={handleAddToCart}
-                            disabled={!selectedSize || maxQuantity === 0}
-                        >
-                            {maxQuantity === 0 ? 'Sin stock' : 'Añadir al carrito'}
-                        </Button>
+                        {/* Botones de acción */}
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <IconButton aria-label="add to favorites" color="secondary" size="large">
+                                <FavoriteBorder />
+                            </IconButton>
+                            <Button
+                                variant="contained"
+                                size="large"
+                                startIcon={<AddShoppingCart />}
+                                fullWidth
+                                onClick={handleAddToCart}
+                                disabled={!selectedSize || maxQuantity === 0}
+                            >
+                                {maxQuantity === 0 ? 'Sin stock' : 'Añadir al carrito'}
+                            </Button>
+                        </Box>
                     </Box>
                 </Grid>
             </Grid>

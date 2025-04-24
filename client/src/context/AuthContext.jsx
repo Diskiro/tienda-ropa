@@ -1,22 +1,25 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-import { doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
+import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(() => {
-        // Intentar recuperar el usuario del localStorage al inicializar
-        const savedUser = localStorage.getItem('user');
-        return savedUser ? JSON.parse(savedUser) : null;
-    });
+    const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+    const [alert, setAlert] = useState({ open: false, message: '', severity: 'success' });
 
-    // Función para guardar el usuario en localStorage
+    useEffect(() => {
+        // Verificar si hay un usuario en localStorage
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            setUser(JSON.parse(storedUser));
+        }
+        setLoading(false);
+    }, []);
+
     const saveUserToLocalStorage = (userData) => {
         if (userData) {
             localStorage.setItem('user', JSON.stringify(userData));
@@ -25,154 +28,112 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // Verificar y restaurar la sesión al cargar la aplicación
-    useEffect(() => {
-        const restoreSession = async () => {
-            try {
-                const savedUser = localStorage.getItem('user');
-                if (savedUser) {
-                    const userData = JSON.parse(savedUser);
-                    // Verificar que el usuario aún existe en Firestore
-                    const userDoc = await getDoc(doc(db, 'storeUsers', userData.id));
-                    if (userDoc.exists()) {
-                        setUser({
-                            id: userDoc.id,
-                            ...userDoc.data()
-                        });
-                    } else {
-                        // Si el usuario no existe en Firestore, limpiar la sesión
-                        setUser(null);
-                        localStorage.removeItem('user');
-                    }
-                }
-            } catch (error) {
-                console.error('Error al restaurar la sesión:', error);
-                setUser(null);
-                localStorage.removeItem('user');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        restoreSession();
-    }, []);
-
     const login = async (email, password) => {
         try {
-            setLoading(true);
-            // Buscar el usuario en la colección storeUsers
-            const usersRef = collection(db, 'storeUsers');
-            const q = query(usersRef, where('email', '==', email));
-            const querySnapshot = await getDocs(q);
-
-            if (querySnapshot.empty) {
-                throw new Error('Usuario no encontrado');
+            // Buscar el usuario en storeUsers
+            const usersQuery = query(
+                collection(db, 'storeUsers'),
+                where('email', '==', email)
+            );
+            const usersSnapshot = await getDocs(usersQuery);
+            
+            if (!usersSnapshot.empty) {
+                const userDoc = usersSnapshot.docs[0];
+                const userData = userDoc.data();
+                
+                // Verificar la contraseña
+                if (userData.password === password) {
+                    const userToStore = {
+                        uid: userDoc.id,
+                        email: userData.email,
+                        firstName: userData.firstName,
+                        lastName: userData.lastName,
+                        phone: userData.phone,
+                        metroStation: userData.metroStation,
+                        role: userData.role
+                    };
+                    
+                    setUser(userToStore);
+                    saveUserToLocalStorage(userToStore);
+                    setAlert({
+                        open: true,
+                        message: 'Inicio de sesión exitoso',
+                        severity: 'success'
+                    });
+                    return userToStore;
+                }
             }
-
-            const userDoc = querySnapshot.docs[0];
-            const userData = userDoc.data();
-
-            // Verificar la contraseña
-            if (userData.password !== password) {
-                throw new Error('Contraseña incorrecta');
-            }
-
-            // Crear el objeto de usuario
-            const userObject = {
-                id: userDoc.id,
-                ...userData
-            };
-
-            // Establecer el usuario en el estado y guardar en localStorage
-            setUser(userObject);
-            saveUserToLocalStorage(userObject);
 
             setAlert({
                 open: true,
-                message: 'Inicio de sesión exitoso',
-                severity: 'success'
+                message: 'Credenciales inválidas',
+                severity: 'error'
             });
-
-            return true;
+            return null;
         } catch (error) {
             console.error('Error al iniciar sesión:', error);
             setAlert({
                 open: true,
-                message: error.message || 'Error al iniciar sesión',
+                message: 'Error al iniciar sesión: ' + error.message,
                 severity: 'error'
             });
-            return false;
-        } finally {
-            setLoading(false);
+            return null;
         }
     };
 
     const register = async (userData) => {
         try {
-            setLoading(true);
             // Verificar si el email ya existe
-            const usersRef = collection(db, 'storeUsers');
-            const q = query(usersRef, where('email', '==', userData.email));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                throw new Error('El correo electrónico ya está registrado');
+            const usersQuery = query(
+                collection(db, 'storeUsers'),
+                where('email', '==', userData.email)
+            );
+            const usersSnapshot = await getDocs(usersQuery);
+            
+            if (!usersSnapshot.empty) {
+                setAlert({
+                    open: true,
+                    message: 'El email ya está registrado',
+                    severity: 'error'
+                });
+                return null;
             }
 
-            // Crear el nuevo usuario
-            const newUserRef = await addDoc(collection(db, 'storeUsers'), {
+            // Crear nuevo usuario en storeUsers
+            const newUser = {
                 ...userData,
-                createdAt: new Date().toISOString()
-            });
-
-            // Crear el objeto de usuario
-            const userObject = {
-                id: newUserRef.id,
-                ...userData
+                createdAt: new Date().toISOString(),
+                role: 'customer'
             };
 
-            // Establecer el usuario en el estado y guardar en localStorage
-            setUser(userObject);
-            saveUserToLocalStorage(userObject);
+            const docRef = await addDoc(collection(db, 'storeUsers'), newUser);
+            
+            const userToStore = {
+                uid: docRef.id,
+                email: newUser.email,
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                phone: newUser.phone,
+                metroStation: newUser.metroStation,
+                role: newUser.role
+            };
 
+            setUser(userToStore);
+            saveUserToLocalStorage(userToStore);
             setAlert({
                 open: true,
                 message: 'Registro exitoso',
                 severity: 'success'
             });
-
-            return newUserRef.id;
+            return userToStore;
         } catch (error) {
             console.error('Error al registrar:', error);
             setAlert({
                 open: true,
-                message: error.message || 'Error al registrar usuario',
+                message: 'Error al registrar: ' + error.message,
                 severity: 'error'
             });
             return null;
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const updateUserData = async (userId, userData) => {
-        try {
-            await updateDoc(doc(db, 'storeUsers', userId), userData);
-            setUser(prev => ({ ...prev, ...userData }));
-            setAlert({
-                open: true,
-                message: 'Datos actualizados correctamente',
-                severity: 'success'
-            });
-            return true;
-        } catch (error) {
-            console.error('Error updating user data:', error);
-            setAlert({
-                open: true,
-                message: 'Error al actualizar los datos',
-                severity: 'error'
-            });
-            return false;
         }
     };
 
@@ -196,7 +157,6 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         logout,
-        updateUserData,
         alert,
         closeAlert
     };

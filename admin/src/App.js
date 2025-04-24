@@ -28,11 +28,11 @@ function ProtectedRoute({ children }) {
 }
 
 function App() {
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
             <AuthProvider>
-      <Router>
+                <Router>
                     <Routes>
                         <Route path="/login" element={<Login />} />
                         <Route
@@ -47,23 +47,14 @@ function App() {
                             <Route path="products" element={<Products />} />
                             <Route path="categories" element={<Categories />} />
                             <Route path="orders" element={<Orders />} />
+                            <Route path="upload" element={<UploadProducts />} />
                             <Route path="users" element={<Users />} />
                         </Route>
-                        <Route
-                            path="/upload"
-                            element={
-                                <ProtectedRoute>
-        <Layout>
-                                        <UploadProducts />
-                                    </Layout>
-                                </ProtectedRoute>
-                            }
-                        />
-          </Routes>
-      </Router>
+                    </Routes>
+                </Router>
             </AuthProvider>
-    </ThemeProvider>
-  );
+        </ThemeProvider>
+    );
 }
 
 export default App;
