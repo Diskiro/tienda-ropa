@@ -55,10 +55,14 @@ function Products() {
 
   const fetchProducts = async () => {
     const querySnapshot = await getDocs(collection(db, 'products'));
-    const productsList = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const productsList = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        sizes: data.sizes?.map(size => size.split('__')[1]) || []
+      };
+    });
     setProducts(productsList);
   };
 
@@ -162,9 +166,18 @@ function Products() {
       };
       
       if (selectedProduct) {
+        productData.sizes = productData.sizes.map(size => `${selectedProduct.id}__${size}`);
         await updateDoc(doc(db, 'products', selectedProduct.id), productData);
       } else {
-        await addDoc(collection(db, 'products'), productData);
+        const docRef = await addDoc(collection(db, 'products'), {
+          ...productData,
+          sizes: []
+        });
+        
+        const formattedSizes = productData.sizes.map(size => `${docRef.id}__${size}`);
+        await updateDoc(docRef, {
+          sizes: formattedSizes
+        });
       }
       handleClose();
       fetchProducts();

@@ -1,60 +1,46 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material';
-import { AuthProvider } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
-import { UserProvider } from './context/UserContext';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { theme } from './theme';
 import Header from './components/Header/Header';
 import Footer from './components/Footer/Footer';
-import Home from './pages/Home/Home';
-import Catalog from './pages/Catalog/Catalog';
-import Product from './pages/Product/Product';
-import Cart from './pages/Cart/Cart';
-import Checkout from './pages/Checkout/Checkout';
-import Login from './pages/Login/Login';
-import Register from './pages/Register/Register';
-import Profile from './pages/Profile/Profile';
-import PrivateRoute from './components/PrivateRoute/PrivateRoute';
-import './App.css';
-
-const theme = createTheme({
-    palette: {
-        primary: {
-            main: '#1976d2',
-        },
-        secondary: {
-            main: '#dc004e',
-        },
-    },
-});
+import HomePage from './pages/Home/HomePage';
+import CatalogPage from './pages/Catalog/Catalog';
+import ProductPage from './pages/Product/Product';
+import CartPage from './pages/Cart/Cart';
+import CheckoutPage from './pages/Checkout/Checkout';
+import { LoginPage } from './pages/Login/Login';
+import { RegisterPage } from './pages/Register/Register';
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+import CartMigration from './components/CartMigration/CartMigration';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
     return (
         <ThemeProvider theme={theme}>
+            <CssBaseline />
             <AuthProvider>
-                <UserProvider>
-                    <CartProvider>
-                        <Router>
-                            <div className="App">
-                                <Header />
-                                <main className="main-content">
-                                    <Routes>
-                                        <Route path="/" element={<Home />} />
-                                        <Route path="/catalogo" element={<Catalog />} />
-                                        <Route path="/producto/:id" element={<Product />} />
-                                        <Route path="/cart" element={<Cart />} />
-                                        <Route path="/login" element={<Login />} />
-                                        <Route path="/register" element={<Register />} />
-                                        <Route path="/profile" element={<Profile />} />
-                                        <Route path="/checkout" element={<Checkout />} />
-                                    </Routes>
-                                </main>
-                                <Footer />
-                            </div>
-                        </Router>
-                    </CartProvider>
-                </UserProvider>
+                <CartProvider>
+                    <Router>
+                        <Header />
+                        <main style={{ minHeight: 'calc(100vh - 128px)' }}>
+                            <CartMigration />
+                            <Routes>
+                                <Route path="/" element={<HomePage />} />
+                                <Route path="/catalogo" element={<CatalogPage />} />
+                                <Route path="/producto/:id" element={<ProductPage />} />
+                                <Route path="/cart" element={<CartPage />} />
+                                <Route path="/checkout" element={<CheckoutPage />} />
+                                <Route path="/login" element={<LoginPage />} />
+                                <Route path="/register" element={<RegisterPage />} />
+                            </Routes>
+                        </main>
+                        <Footer />
+                    </Router>
+                </CartProvider>
             </AuthProvider>
+            <Toaster position="bottom-right" />
         </ThemeProvider>
     );
 }

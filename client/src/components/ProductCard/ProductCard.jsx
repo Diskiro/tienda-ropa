@@ -18,19 +18,39 @@ import {
 } from '@mui/material';
 import { AddShoppingCart, FavoriteBorder } from '@mui/icons-material';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../utils/priceUtils';
 import PropTypes from 'prop-types';
 
 export default function ProductCard({ product }) {
     const navigate = useNavigate();
-    const { addToCart } = useCart();
+    const { addSingleToCart } = useCart();
+    const { user } = useAuth();
     const [selectedSize, setSelectedSize] = useState('');
-    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success'
+    });
 
     const mainImage = product.images?.[0] || '/assets/placeholder.jpg';
-    const availableSizes = product.sizes?.filter(size => product.inventory?.[size] > 0) || [];
+    
+    // Modificar la forma en que se obtienen las tallas disponibles
+    const availableSizes = product.sizes
+        ?.map(size => {
+            // Extraer solo la talla del formato "ID__TALLA"
+            const sizeOnly = size.split('__')[1];
+            // Usar la talla sin ID para buscar en el inventario
+            const stock = product.inventory?.[sizeOnly] || 0;
+            return {
+                size: sizeOnly,
+                stock: stock
+            };
+        })
+        .filter(item => item.stock > 0)
+        .map(item => item.size) || [];
 
-    const handleAddToCart = () => {
+    const handleAddToCart = async () => {
         if (!selectedSize) {
             setSnackbar({
                 open: true,
@@ -40,12 +60,20 @@ export default function ProductCard({ product }) {
             return;
         }
 
-        addToCart(product, 1, selectedSize);
-        setSnackbar({
-            open: true,
-            message: 'Producto agregado al carrito',
-            severity: 'success'
-        });
+        try {
+            await addSingleToCart(product, selectedSize);
+            setSnackbar({
+                open: true,
+                message: 'Producto agregado al carrito',
+                severity: 'success'
+            });
+        } catch (error) {
+            setSnackbar({
+                open: true,
+                message: error.message,
+                severity: 'error'
+            });
+        }
     };
 
     const handleCloseSnackbar = () => {
@@ -118,7 +146,7 @@ export default function ProductCard({ product }) {
             </CardContent>
             <CardActions sx={{ p: 2, pt: 0 }}>
                 <Box sx={{ width: '100%' }}>
-                    {availableSizes.length > 0 && (
+                    {availableSizes && availableSizes.length > 0 && (
                         <FormControl fullWidth size="small" sx={{ mb: 1 }}>
                             <InputLabel id="size-label">Talla</InputLabel>
                             <Select
@@ -126,11 +154,13 @@ export default function ProductCard({ product }) {
                                 value={selectedSize}
                                 onChange={(e) => setSelectedSize(e.target.value)}
                                 label="Talla"
-                                displayEmpty
                             >
+                                <MenuItem value="">
+                                    <em>Selecciona una talla</em>
+                                </MenuItem>
                                 {availableSizes.map((size) => (
                                     <MenuItem key={size} value={size}>
-                                        {size} ({product.inventory[size]} disponibles)
+                                        {size}
                                     </MenuItem>
                                 ))}
                             </Select>

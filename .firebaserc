@@ -5,11 +5,11 @@
   "targets": {
     "charys-clothes-store": {
       "hosting": {
-        "client": [
-          "charys-clothes-store"
-        ],
         "admin": [
           "charys-clothes-store-admin"
+        ],
+        "tienda": [
+          "charys-clothes-store"
         ]
       }
     }
