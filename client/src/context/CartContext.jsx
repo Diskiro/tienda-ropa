@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
+import debounce from 'lodash.debounce';
 
 const CartContext = createContext();
 
@@ -11,6 +12,9 @@ export function CartProvider({ children }) {
     const { user } = useAuth();
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [stockCache, setStockCache] = useState({});
+    const stockCacheRef = useRef({});
+    const pendingUpdates = useRef([]);
 
     // Generar un ID único para el carrito de invitado
     const getGuestCartId = () => {
@@ -29,47 +33,128 @@ export function CartProvider({ children }) {
             return [];
         }
         return cartItems.map(item => {
-            // Intentar obtener productId de item.productId o del formato de size
             let productId = item.productId;
             if (!productId && item.size && item.size.includes('__')) {
                 productId = item.size.split('__')[0];
             }
 
             return {
-                id: item.id || '', // Mantener id si existe por compatibilidad?
-                productId: productId || '', // Asegurar que productId exista
+                id: item.id || '',
+                productId: productId || '',
                 name: item.name || 'Nombre no disponible',
                 price: item.price || 0,
                 image: item.image || '',
                 size: item.size || '',
                 quantity: item.quantity || 1,
-                createdAt: item.createdAt || new Date().toISOString() // Añadir fecha si no existe
+                createdAt: item.createdAt || new Date().toISOString()
             };
-        }).filter(item => item.productId && item.size); // Filtrar items inválidos sin productId o size
+        }).filter(item => item.productId && item.size);
     };
+
+    // Función para obtener el stock de un producto
+    const getProductStock = async (productId, sizeKey) => {
+        const cacheKey = `${productId}_${sizeKey.split('__')[1]}`;
+        
+        try {
+            // Si tenemos el stock en caché, verificar si es reciente (menos de 5 segundos)
+            if (stockCacheRef.current[cacheKey] !== undefined) {
+                const cacheTimestamp = stockCacheRef.current[`${cacheKey}_timestamp`];
+                if (cacheTimestamp && (Date.now() - cacheTimestamp) < 5000) {
+                    return stockCacheRef.current[cacheKey];
+                }
+            }
+
+            // Si no, obtener del servidor
+            const productDoc = await getDoc(doc(db, 'products', productId));
+            if (!productDoc.exists()) {
+                throw new Error('Producto no encontrado');
+            }
+
+            const productData = productDoc.data();
+            const availableStock = productData.inventory?.[sizeKey] || 0;
+            
+            // Actualizar caché con timestamp
+            stockCacheRef.current[cacheKey] = availableStock;
+            stockCacheRef.current[`${cacheKey}_timestamp`] = Date.now();
+            setStockCache(prev => ({
+                ...prev,
+                [cacheKey]: availableStock
+            }));
+
+            return availableStock;
+        } catch (error) {
+            console.error('Error al obtener stock:', error);
+            throw error;
+        }
+    };
+
+    // Función para actualizar el caché de stock
+    const updateStockCache = (productId, size, newStock) => {
+        const cacheKey = `${productId}_${size}`;
+        stockCacheRef.current[cacheKey] = newStock;
+        stockCacheRef.current[`${cacheKey}_timestamp`] = Date.now();
+        setStockCache(prev => ({
+            ...prev,
+            [cacheKey]: newStock
+        }));
+    };
+
+    // Función debounceada para guardar el carrito
+    const debouncedSaveCart = useCallback(
+        debounce(async (cartData) => {
+            try {
+                if (user) {
+                    await setDoc(doc(db, 'storeUsers', user.uid), {
+                        cart: cartData,
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                } else {
+                    const guestCartId = localStorage.getItem('guestCartId') || `guest_${Date.now()}`;
+                    localStorage.setItem('guestCartId', guestCartId);
+                    await setDoc(doc(db, 'guestCarts', guestCartId), {
+                        items: cartData,
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+            } catch (error) {
+                console.error('Error saving cart:', error);
+                throw error;
+            }
+        }, 1000),
+        [user]
+    );
 
     // Cargar el carrito cuando cambie el usuario o al iniciar
     useEffect(() => {
         const loadCart = async () => {
             try {
+                let cartDoc;
                 if (user) {
-                    // Cargar carrito de usuario autenticado
-                    const userDoc = await getDoc(doc(db, 'storeUsers', user.uid));
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data();
-                        setCart(cleanCartData(userData.cart || []));
-                    } else {
-                        setCart([]);
-                    }
+                    cartDoc = await getDoc(doc(db, 'storeUsers', user.uid));
                 } else {
-                    // Cargar carrito de invitado
                     const guestCartId = getGuestCartId();
-                    const cartDoc = await getDoc(doc(db, 'guestCarts', guestCartId));
-                    if (cartDoc.exists()) {
-                        setCart(cleanCartData(cartDoc.data().items || []));
-                    } else {
-                        setCart([]);
-                    }
+                    cartDoc = await getDoc(doc(db, 'guestCarts', guestCartId));
+                }
+
+                if (cartDoc.exists()) {
+                    const cartData = user ? cartDoc.data().cart : cartDoc.data().items;
+                    const loadedCart = cleanCartData(cartData || []);
+                    setCart(loadedCart);
+                    
+                    // Precargar caché de stock en paralelo
+                    const stockPromises = loadedCart.map(async item => {
+                        const [productId, size] = item.size.split('__');
+                        const sizeKey = `${productId}__${size}`;
+                        const availableStock = await getProductStock(productId, sizeKey);
+                        return { productId, size, availableStock };
+                    });
+
+                    const stockResults = await Promise.all(stockPromises);
+                    stockResults.forEach(({ productId, size, availableStock }) => {
+                        updateStockCache(productId, size, availableStock);
+                    });
+                } else {
+                    setCart([]);
                 }
             } catch (error) {
                 console.error('Error loading cart:', error);
@@ -82,157 +167,6 @@ export function CartProvider({ children }) {
         loadCart();
     }, [user]);
 
-    // Función para guardar el carrito en Firestore
-    const saveCart = async (cartData) => {
-        try {
-            if (user) {
-                // Guardar en el documento del usuario
-                await setDoc(doc(db, 'storeUsers', user.uid), {
-                    cart: cartData,
-                    updatedAt: new Date().toISOString()
-                }, { merge: true });
-            } else {
-                // Guardar en el carrito de invitado
-                const guestCartId = localStorage.getItem('guestCartId') || `guest_${Date.now()}`;
-                localStorage.setItem('guestCartId', guestCartId);
-                await setDoc(doc(db, 'guestCarts', guestCartId), {
-                    items: cartData,
-                    updatedAt: new Date().toISOString()
-                }, { merge: true });
-            }
-        } catch (error) {
-            console.error('Error saving cart:', error);
-            throw error;
-        }
-    };
-
-    const addSingleToCart = async (product, size) => {
-        try {
-            // Verificar stock disponible en tiempo real
-            const productDoc = await getDoc(doc(db, 'products', product.id));
-            if (!productDoc.exists()) {
-                throw new Error('Producto no encontrado');
-            }
-
-            const productData = productDoc.data();
-            // Extraer solo la talla del formato ID__TALLA si es necesario
-            const sizeOnly = size.includes('__') ? size.split('__')[1] : size;
-            const availableStock = productData.inventory?.[sizeOnly] || 0;
-
-            if (availableStock <= 0) {
-                throw new Error('No hay stock disponible para esta talla');
-            }
-
-            const newCart = [...cart];
-            // Usar el formato completo de la talla (ID__TALLA)
-            const fullSize = `${product.id}__${sizeOnly}`;
-            const existingItemIndex = newCart.findIndex(
-                item => item.size === fullSize
-            );
-
-            // Verificar si al agregar uno más excedería el stock disponible
-            if (existingItemIndex >= 0) {
-                const currentQuantity = newCart[existingItemIndex].quantity;
-                if (currentQuantity + 1 > availableStock) {
-                    throw new Error('No hay suficiente stock disponible');
-                }
-                newCart[existingItemIndex].quantity += 1;
-            } else {
-                newCart.push({
-                    productId: product.id,
-                    name: product.name,
-                    price: product.price,
-                    size: fullSize,
-                    quantity: 1,
-                    image: product.images?.[0] || '',
-                    createdAt: new Date().toISOString()
-                });
-            }
-
-            setCart(newCart);
-            await saveCart(newCart);
-        } catch (error) {
-            console.error('Error adding to cart:', error);
-            throw error;
-        }
-    };
-
-    const addMultipleToCart = async (product, size, quantity) => {
-        try {
-            // Verificar stock disponible en tiempo real
-            const productDoc = await getDoc(doc(db, 'products', product.id));
-            if (!productDoc.exists()) {
-                throw new Error('Producto no encontrado');
-            }
-
-            const productData = productDoc.data();
-            // Extraer solo la talla del formato ID__TALLA si es necesario
-            const sizeOnly = size.includes('__') ? size.split('__')[1] : size;
-            const availableStock = productData.inventory?.[sizeOnly] || 0;
-
-            if (availableStock <= 0) {
-                throw new Error('No hay stock disponible para esta talla');
-            }
-
-            const newCart = [...cart];
-            // Usar el formato completo de la talla (ID__TALLA)
-            const fullSize = `${product.id}__${sizeOnly}`;
-            const existingItemIndex = newCart.findIndex(
-                item => item.size === fullSize
-            );
-
-            // Verificar si al agregar la cantidad excedería el stock disponible
-            if (existingItemIndex >= 0) {
-                const currentQuantity = newCart[existingItemIndex].quantity;
-                if (currentQuantity + quantity > availableStock) {
-                    throw new Error(`Solo hay ${availableStock} unidades disponibles`);
-                }
-                newCart[existingItemIndex].quantity += quantity;
-            } else {
-                if (quantity > availableStock) {
-                    throw new Error(`Solo hay ${availableStock} unidades disponibles`);
-                }
-                newCart.push({
-                    productId: product.id,
-                    name: product.name,
-                    price: product.price,
-                    size: fullSize,
-                    quantity: quantity,
-                    image: product.images?.[0] || '',
-                    createdAt: new Date().toISOString()
-                });
-            }
-
-            setCart(newCart);
-            await saveCart(newCart);
-        } catch (error) {
-            console.error('Error adding to cart:', error);
-            throw error;
-        }
-    };
-
-    // Mantener addToCart para compatibilidad hacia atrás
-    const addToCart = async (product, size, quantity = 1) => {
-        if (quantity === 1) {
-            return addSingleToCart(product, size);
-        } else {
-            return addMultipleToCart(product, size, quantity);
-        }
-    };
-
-    const removeFromCart = async (productId, size) => {
-        try {
-            // Usar el formato completo de la talla (ID__TALLA) para buscar el elemento
-            const fullSize = `${productId}__${size}`;
-            const newCart = cart.filter(item => item.size !== fullSize);
-            setCart(newCart);
-            await saveCart(newCart);
-        } catch (error) {
-            console.error('Error removing from cart:', error);
-            throw error;
-        }
-    };
-
     const updateQuantity = async (productId, size, quantity) => {
         try {
             if (quantity <= 0) {
@@ -240,45 +174,132 @@ export function CartProvider({ children }) {
                 return;
             }
 
-            // Obtener el stock actual del producto
-            const productDoc = await getDoc(doc(db, 'products', productId));
-            if (!productDoc.exists()) {
-                throw new Error('Producto no encontrado');
+            const sizeKey = `${productId}__${size}`;
+            const currentItem = cart.find(item => item.size === sizeKey);
+            
+            if (!currentItem) {
+                throw new Error('Producto no encontrado en el carrito');
             }
 
-            const productData = productDoc.data();
-            // Usar la talla sin ID para buscar en el inventario
-            const sizeOnly = size.split('__')[1];
-            const availableStock = productData.inventory?.[sizeOnly] || 0;
-
-            if (quantity > availableStock) {
-                throw new Error('No hay suficiente stock disponible');
+            // Obtener stock actualizado
+            const availableStock = await getProductStock(productId, sizeKey);
+            
+            // Calcular la diferencia entre la cantidad actual y la nueva
+            const quantityDifference = quantity - currentItem.quantity;
+            
+            // Verificar si hay suficiente stock para el cambio
+            if (availableStock < quantityDifference) {
+                throw new Error(`No hay suficiente stock disponible. Solo quedan ${availableStock} unidades.`);
             }
 
-            // Usar el formato completo de la talla para actualizar el carrito
-            const fullSize = `${productId}__${sizeOnly}`;
-            setCart(prevCart =>
-                prevCart.map(item =>
-                    item.size === fullSize
-                        ? { ...item, quantity }
-                        : item
-                )
+            // Verificar stock nuevamente antes de actualizar
+            const finalStockCheck = await getProductStock(productId, sizeKey);
+            if (finalStockCheck < quantityDifference) {
+                throw new Error(`El stock ha cambiado. Solo quedan ${finalStockCheck} unidades.`);
+            }
+
+            // Actualizar el carrito
+            const newCart = cart.map(item =>
+                item.size === sizeKey
+                    ? { ...item, quantity }
+                    : item
             );
-            await saveCart(cart);
+
+            setCart(newCart);
+            
+            // Actualizar la caché de stock
+            updateStockCache(productId, size, availableStock - quantityDifference);
+            
+            // Guardar cambios en la base de datos
+            await debouncedSaveCart(newCart);
+
+            return true;
         } catch (error) {
             console.error('Error updating quantity:', error);
             throw error;
         }
     };
 
+    const addToCart = async (product, size, quantity = 1) => {
+        try {
+            const sizeKey = `${product.id}__${size}`;
+            const existingItemIndex = cart.findIndex(item => item.size === sizeKey);
+
+            // Obtener stock actualizado
+            const availableStock = await getProductStock(product.id, sizeKey);
+            const currentCartQuantity = existingItemIndex >= 0 ? cart[existingItemIndex].quantity : 0;
+            const newTotalQuantity = currentCartQuantity + quantity;
+
+            if (availableStock < newTotalQuantity) {
+                throw new Error(`No hay suficiente stock disponible. Solo quedan ${availableStock} unidades.`);
+            }
+
+            // Verificar stock nuevamente antes de actualizar
+            const finalStockCheck = await getProductStock(product.id, sizeKey);
+            if (finalStockCheck < newTotalQuantity) {
+                throw new Error(`El stock ha cambiado. Solo quedan ${finalStockCheck} unidades.`);
+            }
+
+            const newCart = [...cart];
+            if (existingItemIndex >= 0) {
+                newCart[existingItemIndex].quantity += quantity;
+            } else {
+                newCart.push({
+                    productId: product.id,
+                    name: product.name,
+                    price: product.price,
+                    size: sizeKey,
+                    quantity: quantity,
+                    image: product.images?.[0] || '',
+                    createdAt: new Date().toISOString()
+                });
+            }
+
+            setCart(newCart);
+            
+            // Actualizar la caché de stock
+            updateStockCache(product.id, size, availableStock - quantity);
+            
+            // Guardar cambios en la base de datos
+            await debouncedSaveCart(newCart);
+
+            return true;
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            throw error;
+        }
+    };
+
+    const removeFromCart = async (productId, size) => {
+        try {
+            const sizeKey = `${productId}__${size}`;
+            const itemToRemove = cart.find(item => item.size === sizeKey);
+            const newCart = cart.filter(item => item.size !== sizeKey);
+            
+            setCart(newCart);
+            if (itemToRemove) {
+                await updateStockCache(productId, size, -itemToRemove.quantity);
+            }
+            debouncedSaveCart(newCart);
+        } catch (error) {
+            console.error('Error removing from cart:', error);
+            throw error;
+        }
+    };
+
     const clearCart = async () => {
         try {
+            // Restaurar stock en caché
+            const restoreStockPromises = cart.map(item => {
+                const [productId, size] = item.size.split('__');
+                return updateStockCache(productId, size, -item.quantity);
+            });
+            await Promise.all(restoreStockPromises);
+            
             setCart([]);
-            // Guardar el carrito vacío en Firestore
-            await saveCart([]);
+            debouncedSaveCart([]);
         } catch (error) {
             console.error('Error clearing cart:', error);
-            // Opcional: manejar el error, mostrar notificación, etc.
         }
     };
 
@@ -290,62 +311,15 @@ export function CartProvider({ children }) {
         return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
     };
 
-    // Migrar carrito de invitado a usuario cuando se autentica
-    const migrateGuestCartToUser = async (userId) => {
-        try {
-            const guestCartId = getGuestCartId();
-            const guestCartDoc = await getDoc(doc(db, 'guestCarts', guestCartId));
-            
-            if (guestCartDoc.exists()) {
-                const guestCart = cleanCartData(guestCartDoc.data().items || []);
-                const userDoc = await getDoc(doc(db, 'storeUsers', userId));
-                const userData = userDoc.exists() ? userDoc.data() : {};
-                const userCart = cleanCartData(userData.cart || []);
-
-                // Combinar carritos
-                const mergedCart = [...userCart];
-                guestCart.forEach(guestItem => {
-                    const existingItem = mergedCart.find(
-                        item => item.cartItemId === guestItem.cartItemId
-                    );
-                    if (existingItem) {
-                        existingItem.quantity += guestItem.quantity;
-                    } else {
-                        mergedCart.push(guestItem);
-                    }
-                });
-
-                // Guardar carrito combinado en el documento del usuario manteniendo los datos existentes
-                await setDoc(doc(db, 'storeUsers', userId), {
-                    ...userData,
-                    cart: cleanCartData(mergedCart),
-                    updatedAt: new Date().toISOString()
-                });
-
-                // Limpiar carrito de invitado
-                await setDoc(doc(db, 'guestCarts', guestCartId), {
-                    items: [],
-                    updatedAt: new Date().toISOString()
-                });
-                localStorage.removeItem('guestCartId');
-            }
-        } catch (error) {
-            console.error('Error migrating cart:', error);
-        }
-    };
-
     const value = {
         cart,
         loading,
         addToCart,
-        addSingleToCart,
-        addMultipleToCart,
         removeFromCart,
         updateQuantity,
         clearCart,
         getTotalItems,
-        getTotalPrice,
-        migrateGuestCartToUser
+        getTotalPrice
     };
 
     return (

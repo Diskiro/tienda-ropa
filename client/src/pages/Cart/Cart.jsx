@@ -105,9 +105,7 @@ const Cart = () => {
                                         <Button
                                             size="small"
                                             onClick={() => {
-                                                // Extraer el ID del producto y la talla del formato completo
-                                                const [productId] = item.size.split('__');
-                                                handleQuantityChange(productId, item.size, item.quantity - 1);
+                                                handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity - 1);
                                             }}
                                         >
                                             -
@@ -116,9 +114,7 @@ const Cart = () => {
                                         <Button
                                             size="small"
                                             onClick={() => {
-                                                // Extraer el ID del producto y la talla del formato completo
-                                                const [productId] = item.size.split('__');
-                                                handleQuantityChange(productId, item.size, item.quantity + 1);
+                                                handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity + 1);
                                             }}
                                         >
                                             +
@@ -131,9 +127,7 @@ const Cart = () => {
                                         <IconButton
                                             color="error"
                                             onClick={() => {
-                                                // Extraer el ID del producto y la talla del formato completo
-                                                const [productId, size] = item.size.split('__');
-                                                removeFromCart(productId, size);
+                                                removeFromCart(item.productId, getSizeOnly(item.size));
                                             }}
                                         >
                                             <DeleteIcon />

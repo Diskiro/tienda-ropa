@@ -66,7 +66,7 @@ const Header = () => {
     };
 
     const handleProfile = () => {
-        navigate('/profile');
+        navigate('/user');
         handleClose();
     };
 

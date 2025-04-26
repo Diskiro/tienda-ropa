@@ -23,6 +23,7 @@ service cloud.firestore {
     match /orders/{document=**} {
       allow read: if true;  // Temporalmente permitir lectura
       allow write: if true;  // Temporalmente permitir escritura
+      allow list: if true;  // Permitir consultas por rango
     }
 
     // Reglas para la colección de usuarios de la tienda
@@ -33,6 +34,12 @@ service cloud.firestore {
 
     // Reglas para la colección de administradores
     match /adminUsers/{document=**} {
+      allow read: if true;  // Temporalmente permitir lectura
+      allow write: if true;  // Temporalmente permitir escritura
+    }
+
+    // Reglas para la colección de contadores de pedidos
+    match /userOrdersCounters/{document=**} {
       allow read: if true;  // Temporalmente permitir lectura
       allow write: if true;  // Temporalmente permitir escritura
     }

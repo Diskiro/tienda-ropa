@@ -27,7 +27,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import { db } from '../../firebase';
-import { collection, doc, runTransaction, Timestamp, increment } from 'firebase/firestore';
+import { collection, doc, runTransaction, Timestamp, increment, getDoc } from 'firebase/firestore';
 
 const steps = ['Envío', 'Pago', 'Revisión'];
 
@@ -105,9 +105,21 @@ export default function CheckoutPage() {
         try {
             let newOrderRef;
             await runTransaction(db, async (transaction) => {
-                newOrderRef = doc(collection(db, 'orders'));
+                // Obtener o crear el contador de pedidos del usuario
+                const userOrdersCounterRef = doc(db, 'userOrdersCounters', user.uid);
+                const counterDoc = await transaction.get(userOrdersCounterRef);
+                
+                let orderNumber = 1;
+                if (counterDoc.exists()) {
+                    orderNumber = counterDoc.data().count + 1;
+                }
+                
+                // Crear el ID del pedido
+                const orderId = `${user.uid}__orden${orderNumber}`;
+                newOrderRef = doc(db, 'orders', orderId);
 
                 const orderData = {
+                    id: orderId,
                     userId: user.uid,
                     customerName: formData.name,
                     customerEmail: formData.email,
@@ -122,8 +134,13 @@ export default function CheckoutPage() {
                     createdAt: Timestamp.now()
                 };
 
+                // Crear el pedido
                 transaction.set(newOrderRef, orderData);
+                
+                // Actualizar el contador de pedidos del usuario
+                transaction.set(userOrdersCounterRef, { count: orderNumber }, { merge: true });
 
+                // Actualizar el inventario
                 for (const item of cart) {
                     if (!item.productId || !item.size || !item.size.includes('__')) {
                         console.warn('Item inválido en el carrito, omitiendo actualización de stock:', item);
@@ -131,18 +148,36 @@ export default function CheckoutPage() {
                     }
 
                     const productRef = doc(db, 'products', item.productId);
-                    const sizeOnly = item.size.split('__')[1];
-                    const fieldToUpdate = `inventory.${sizeOnly}`;
-
+                    const sizeKey = item.size;
+                    
                     transaction.update(productRef, { 
-                        [fieldToUpdate]: increment(-item.quantity) 
+                        [`inventory.${sizeKey}`]: increment(-item.quantity) 
                     });
                 }
             });
 
             setSnackbar({ open: true, message: 'Pedido realizado con éxito.', severity: 'success' });
             await clearCart();
-            navigate('/confirmacion', { state: { orderId: newOrderRef.id } });
+            navigate('/confirmation', { 
+                state: { 
+                    order: {
+                        id: newOrderRef.id,
+                        userId: user.uid,
+                        customerName: formData.name,
+                        customerEmail: formData.email,
+                        customerPhone: formData.phone,
+                        shippingMethod: shippingMethod,
+                        metroStation: user.metroStation || '',
+                        paymentMethod: paymentMethod,
+                        items: cart,
+                        subtotal: subtotal,
+                        shippingCost: shipping,
+                        total: total,
+                        createdAt: new Date().toISOString(),
+                        status: 'pending'
+                    }
+                } 
+            });
 
         } catch (error) {
             console.error("Error al procesar el pedido: ", error);
@@ -294,7 +329,7 @@ export default function CheckoutPage() {
                                             <strong>Banco:</strong> Banamex
                                         </Typography>
                                         <Typography variant="body2">
-                                            <strong>No de Tarjeta:</strong> 5204165898960293
+                                            <strong>No de Tarjeta:</strong> 5204 1658 9896 0293
                                         </Typography>
                                         <Typography variant="body2" sx={{ mt: 1 }}>
                                             <strong>Nombre:</strong> Arlenne Medel Mayen
@@ -303,7 +338,7 @@ export default function CheckoutPage() {
                                             <strong>Banco:</strong> BBVA
                                         </Typography>
                                         <Typography variant="body2">
-                                            <strong>No de Cuenta:</strong> 4152313853018351
+                                            <strong>No de Cuenta:</strong> 4152 3138 5301 8351
                                         </Typography>
                                     </Box>
                                 )}
