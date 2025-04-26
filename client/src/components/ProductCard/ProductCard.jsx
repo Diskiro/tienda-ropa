@@ -24,7 +24,7 @@ import PropTypes from 'prop-types';
 
 export default function ProductCard({ product }) {
     const navigate = useNavigate();
-    const { addSingleToCart } = useCart();
+    const { addToCart } = useCart();
     const { user } = useAuth();
     const [selectedSize, setSelectedSize] = useState('');
     const [snackbar, setSnackbar] = useState({
@@ -35,20 +35,15 @@ export default function ProductCard({ product }) {
 
     const mainImage = product.images?.[0] || '/assets/placeholder.jpg';
     
-    // Modificar la forma en que se obtienen las tallas disponibles
-    const availableSizes = product.sizes
-        ?.map(size => {
-            // Extraer solo la talla del formato "ID__TALLA"
-            const sizeOnly = size.split('__')[1];
-            // Usar la talla sin ID para buscar en el inventario
-            const stock = product.inventory?.[sizeOnly] || 0;
-            return {
-                size: sizeOnly,
-                stock: stock
-            };
-        })
-        .filter(item => item.stock > 0)
-        .map(item => item.size) || [];
+    // Obtener las tallas disponibles del inventario
+    const availableSizes = Object.entries(product.inventory || {})
+        .filter(([_, stock]) => stock > 0)
+        .map(([sizeKey]) => sizeKey.split('__')[1])
+        .sort((a, b) => {
+            // Ordenar las tallas de manera lógica
+            const sizeOrder = { 'L': 1, 'XL': 2, '1XL': 3, '2XL': 4, '3XL': 5, '4XL': 6, '5XL': 7 };
+            return sizeOrder[a] - sizeOrder[b];
+        });
 
     const handleAddToCart = async () => {
         if (!selectedSize) {
@@ -61,7 +56,7 @@ export default function ProductCard({ product }) {
         }
 
         try {
-            await addSingleToCart(product, selectedSize);
+            await addToCart(product, selectedSize);
             setSnackbar({
                 open: true,
                 message: 'Producto agregado al carrito',
@@ -160,7 +155,7 @@ export default function ProductCard({ product }) {
                                 </MenuItem>
                                 {availableSizes.map((size) => (
                                     <MenuItem key={size} value={size}>
-                                        {size}
+                                        {size} ({product.inventory[`${product.id}__${size}`]} disponibles)
                                     </MenuItem>
                                 ))}
                             </Select>

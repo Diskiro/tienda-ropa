@@ -13,6 +13,7 @@ import Orders from './pages/Orders';
 import UploadProducts from './pages/UploadProducts';
 import Users from './pages/Users';
 
+
 function ProtectedRoute({ children }) {
     const { user, loading } = useAuth();
 

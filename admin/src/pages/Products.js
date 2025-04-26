@@ -43,8 +43,7 @@ function Products() {
     images: [],
     category: '',
     featured: false,
-    sizes: [],
-    inventory: {} // Objeto para almacenar el inventario por talla
+    inventory: {}
   });
   const [newImage, setNewImage] = useState('');
 
@@ -60,7 +59,7 @@ function Products() {
       return {
         id: doc.id,
         ...data,
-        sizes: data.sizes?.map(size => size.split('__')[1]) || []
+        sizes: data.sizes || []
       };
     });
     setProducts(productsList);
@@ -82,7 +81,6 @@ function Products() {
         ...product,
         price: product.price.toString(),
         images: Array.isArray(product.images) ? product.images : [product.image].filter(Boolean),
-        sizes: product.sizes || [],
         inventory: product.inventory || {}
       });
     } else {
@@ -94,8 +92,10 @@ function Products() {
         images: [],
         category: '',
         featured: false,
-        sizes: [],
-        inventory: {}
+        inventory: AVAILABLE_SIZES.reduce((acc, size) => {
+          acc[`new__${size}`] = 0;
+          return acc;
+        }, {})
       });
     }
     setOpen(true);
@@ -114,24 +114,13 @@ function Products() {
     });
   };
 
-  const handleSizeChange = (event) => {
-    const selectedSizes = event.target.value;
-    setFormData({
-      ...formData,
-      sizes: selectedSizes,
-      inventory: selectedSizes.reduce((acc, size) => {
-        acc[size] = formData.inventory[size] || 0;
-        return acc;
-      }, {})
-    });
-  };
-
   const handleInventoryChange = (size, value) => {
+    const sizeKey = `${selectedProduct ? selectedProduct.id : 'new'}__${size}`;
     setFormData({
       ...formData,
       inventory: {
         ...formData.inventory,
-        [size]: parseInt(value) || 0
+        [sizeKey]: parseInt(value) || 0
       }
     });
   };
@@ -158,25 +147,37 @@ function Products() {
     try {
       const productData = {
         ...formData,
-        price: parseFloat(formData.price),
-        inventory: formData.sizes.reduce((acc, size) => {
-          acc[size] = formData.inventory[size] || 0;
-          return acc;
-        }, {})
+        price: parseFloat(formData.price)
       };
       
       if (selectedProduct) {
-        productData.sizes = productData.sizes.map(size => `${selectedProduct.id}__${size}`);
-        await updateDoc(doc(db, 'products', selectedProduct.id), productData);
+        const filteredInventory = Object.entries(productData.inventory).reduce((acc, [key, value]) => {
+          if (value > 0) {
+            acc[key] = value;
+          }
+          return acc;
+        }, {});
+        
+        await updateDoc(doc(db, 'products', selectedProduct.id), {
+          ...productData,
+          inventory: filteredInventory
+        });
       } else {
         const docRef = await addDoc(collection(db, 'products'), {
           ...productData,
-          sizes: []
+          inventory: {}
         });
         
-        const formattedSizes = productData.sizes.map(size => `${docRef.id}__${size}`);
+        const formattedInventory = AVAILABLE_SIZES.reduce((acc, size) => {
+          const stock = formData.inventory[`new__${size}`] || 0;
+          if (stock > 0) {
+            acc[`${docRef.id}__${size}`] = stock;
+          }
+          return acc;
+        }, {});
+        
         await updateDoc(docRef, {
-          sizes: formattedSizes
+          inventory: formattedInventory
         });
       }
       handleClose();
@@ -219,7 +220,6 @@ function Products() {
               <TableCell>Descripción</TableCell>
               <TableCell>Categoría</TableCell>
               <TableCell>Imágenes</TableCell>
-              <TableCell>Tallas</TableCell>
               <TableCell>Inventario</TableCell>
               <TableCell>Destacado</TableCell>
               <TableCell>Acciones</TableCell>
@@ -236,14 +236,26 @@ function Products() {
                   {Array.isArray(product.images) ? product.images.length : 1} imagen(es)
                 </TableCell>
                 <TableCell>
-                  {product.sizes?.join(', ') || 'Sin tallas'}
+                  {AVAILABLE_SIZES.map(size => {
+                    const sizeKey = `${product.id}__${size}`;
+                    const stock = product.inventory?.[sizeKey] || 0;
+                    if (stock > 0) {
+                      return `${size}: ${stock}, `;
+                    }
+                    return null;
+                  }).filter(Boolean)}
                 </TableCell>
                 <TableCell>
-                  {product.sizes?.map(size => (
-                    <div key={size}>{size}: {product.inventory?.[size] || 0}</div>
-                  ))}
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={product.featured || false}
+                        disabled
+                      />
+                    }
+                    label=""
+                  />
                 </TableCell>
-                <TableCell>{product.featured ? 'Sí' : 'No'}</TableCell>
                 <TableCell>
                   <IconButton onClick={() => handleOpen(product)}>
                     <EditIcon />
@@ -335,41 +347,6 @@ function Products() {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth margin="dense">
-            <InputLabel>Tallas</InputLabel>
-            <Select
-              multiple
-              value={formData.sizes}
-              onChange={handleSizeChange}
-              label="Tallas"
-              renderValue={(selected) => selected.join(', ')}
-            >
-              {AVAILABLE_SIZES.map((size) => (
-                <MenuItem key={size} value={size}>
-                  {size}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Inventario por talla
-            </Typography>
-            <Grid container spacing={2}>
-              {formData.sizes.map((size) => (
-                <Grid item xs={6} key={size}>
-                  <TextField
-                    label={`Inventario ${size}`}
-                    type="number"
-                    value={formData.inventory[size] || 0}
-                    onChange={(e) => handleInventoryChange(size, e.target.value)}
-                    fullWidth
-                    inputProps={{ min: 0 }}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          </Box>
           <FormControlLabel
             control={
               <Checkbox
@@ -380,6 +357,25 @@ function Products() {
             }
             label="Producto Destacado"
           />
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              Inventario por talla
+            </Typography>
+            <Grid container spacing={2}>
+              {AVAILABLE_SIZES.map((size) => (
+                <Grid item xs={6} sm={4} md={3} key={size}>
+                  <TextField
+                    label={`Talla ${size}`}
+                    type="number"
+                    value={formData.inventory[`${selectedProduct ? selectedProduct.id : 'new'}__${size}`] || 0}
+                    onChange={(e) => handleInventoryChange(size, e.target.value)}
+                    fullWidth
+                    inputProps={{ min: 0 }}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleClose}>Cancelar</Button>

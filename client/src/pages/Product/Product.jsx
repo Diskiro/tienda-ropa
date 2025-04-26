@@ -9,7 +9,7 @@ import { useCart } from '../../context/CartContext';
 
 export default function ProductPage() {
     const { id } = useParams();
-    const { addMultipleToCart } = useCart();
+    const { addToCart } = useCart();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
     const [selectedSize, setSelectedSize] = useState('');
@@ -40,7 +40,8 @@ export default function ProductPage() {
 
     useEffect(() => {
         if (selectedSize && product?.inventory) {
-            const availableQuantity = product.inventory[selectedSize] || 0;
+            const sizeKey = `${product.id}__${selectedSize}`;
+            const availableQuantity = product.inventory[sizeKey] || 0;
             setMaxQuantity(availableQuantity);
             // Si la cantidad actual es mayor que el nuevo máximo, ajustarla
             if (quantity > availableQuantity) {
@@ -69,26 +70,45 @@ export default function ProductPage() {
             return;
         }
 
-        if (quantity > maxQuantity) {
+        const sizeKey = `${product.id}__${selectedSize}`;
+        const currentStock = product.inventory?.[sizeKey] || 0;
+
+        if (quantity > currentStock) {
             setSnackbar({
                 open: true,
-                message: `Solo hay ${maxQuantity} unidades disponibles`,
+                message: `Solo hay ${currentStock} unidades disponibles`,
                 severity: 'error'
             });
             return;
         }
 
         try {
-            await addMultipleToCart(product, selectedSize, quantity);
-            setSnackbar({
-                open: true,
-                message: 'Producto agregado al carrito',
-                severity: 'success'
-            });
+            const success = await addToCart(product, selectedSize, quantity);
+            if (success) {
+                setSnackbar({
+                    open: true,
+                    message: 'Producto agregado al carrito',
+                    severity: 'success'
+                });
+                // Actualizar el stock local después de agregar al carrito
+                const newStock = currentStock - quantity;
+                setProduct(prev => ({
+                    ...prev,
+                    inventory: {
+                        ...prev.inventory,
+                        [sizeKey]: newStock
+                    }
+                }));
+                setMaxQuantity(newStock);
+                if (quantity > newStock) {
+                    setQuantity(newStock);
+                }
+            }
         } catch (error) {
+            console.error('Error al agregar al carrito:', error);
             setSnackbar({
                 open: true,
-                message: error.message,
+                message: error.message || 'Error al agregar al carrito',
                 severity: 'error'
             });
         }
@@ -110,20 +130,15 @@ export default function ProductPage() {
     const mainImage = product.images?.[0] || '/assets/placeholder.jpg';
     const additionalImages = product.images?.slice(1, 5) || [];
     
-    // Modificar la forma en que se obtienen las tallas disponibles
-    const availableSizes = product.sizes
-        ?.map(size => {
-            // Extraer solo la talla del formato "ID__TALLA"
-            const sizeOnly = size.split('__')[1];
-            // Usar la talla sin ID para buscar en el inventario
-            const stock = product.inventory?.[sizeOnly] || 0;
-            return {
-                size: sizeOnly,
-                stock: stock
-            };
-        })
-        .filter(item => item.stock > 0)
-        .map(item => item.size) || [];
+    // Obtener las tallas disponibles del inventario
+    const availableSizes = Object.entries(product.inventory || {})
+        .filter(([_, stock]) => stock > 0)
+        .map(([sizeKey]) => sizeKey.split('__')[1])
+        .sort((a, b) => {
+            // Ordenar las tallas de manera lógica
+            const sizeOrder = { 'L': 1, 'XL': 2, '1XL': 3, '2XL': 4, '3XL': 5, '4XL': 6, '5XL': 7 };
+            return sizeOrder[a] - sizeOrder[b];
+        });
 
     return (
         <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -176,7 +191,7 @@ export default function ProductPage() {
                         <Divider sx={{ my: 2 }} />
 
                         {/* Tallas */}
-                        {product.sizes && product.sizes.length > 0 && (
+                        {availableSizes && availableSizes.length > 0 && (
                             <Box sx={{ mb: 2 }}>
                                 <Typography variant="subtitle1" gutterBottom>
                                     Talla
@@ -193,7 +208,7 @@ export default function ProductPage() {
                                         </MenuItem>
                                         {availableSizes.map((size) => (
                                             <MenuItem key={size} value={size}>
-                                                {size} ({product.inventory[size]} disponibles)
+                                                {size} ({product.inventory[`${product.id}__${size}`]} disponibles)
                                             </MenuItem>
                                         ))}
                                     </Select>
@@ -220,7 +235,7 @@ export default function ProductPage() {
                             />
                             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                                 {selectedSize 
-                                    ? `${maxQuantity} disponibles` 
+                                    ? `${product.inventory[`${product.id}__${selectedSize}`] || 0} disponibles` 
                                     : 'Selecciona una talla'}
                             </Typography>
                         </Box>
