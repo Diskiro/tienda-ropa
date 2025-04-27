@@ -31,7 +31,8 @@ import {
     StyledTabs,
     StyledEmptyState,
     StyledLoadingContainer,
-    StyledErrorContainer
+    StyledErrorContainer,
+    StyledGrid
 } from './User.styles';
 
 // Componente para mostrar la información del usuario
@@ -98,56 +99,50 @@ const OrderItem = React.memo(({ order, onOrderClick }) => {
             role="button"
             aria-label={`Ver detalles del pedido ${order.id}`}
         >
-            <ListItemText
-                primary={
-                    <StyledOrderHeader>
-                        <Typography variant="subtitle1" component="span">
-                            ID del pedido: {order.id}
+            <Box sx={{ width: '100%' }}>
+                <StyledOrderHeader>
+                    <Typography variant="subtitle1" component="span">
+                        ID del pedido: {order.id}
+                    </Typography>
+                    <Chip
+                        label={order.status}
+                        color={getStatusColor(order.status)}
+                        size="small"
+                    />
+                </StyledOrderHeader>
+                <StyledOrderDate variant="body2" component="div">
+                    {new Date(order.createdAt?.toDate()).toLocaleDateString()}
+                    <br />
+                    Total: {formatPrice(order.totalAmount)}
+                </StyledOrderDate>
+                {order.status?.toLowerCase() === 'pendiente' && (
+                    <Box sx={{ 
+                        mt: 1, 
+                        p: 1, 
+                        bgcolor: 'warning.light', 
+                        borderRadius: 1,
+                        color: 'warning.contrastText'
+                    }}>
+                        <Typography variant="body2" component="div">
+                            Tienes 24 horas para enviar tu recibo de pago a este{' '}
+                            <Link 
+                                href="https://wa.me/527224992307" 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                sx={{ 
+                                    color: 'warning.contrastText',
+                                    textDecoration: 'underline',
+                                    '&:hover': {
+                                        color: 'warning.dark'
+                                    }
+                                }}
+                            >
+                                WhatsApp
+                            </Link>
                         </Typography>
-                        <Chip
-                            label={order.status}
-                            color={getStatusColor(order.status)}
-                            size="small"
-                        />
-                    </StyledOrderHeader>
-                }
-                secondary={
-                    <>
-                        <StyledOrderDate variant="body2" component="span">
-                            {new Date(order.createdAt?.toDate()).toLocaleDateString()}
-                            <br />
-                            Total: {formatPrice(order.totalAmount)}
-                        </StyledOrderDate>
-                        {order.status?.toLowerCase() === 'pendiente' && (
-                            <Box sx={{ 
-                                mt: 1, 
-                                p: 1, 
-                                bgcolor: 'warning.light', 
-                                borderRadius: 1,
-                                color: 'warning.contrastText'
-                            }}>
-                                <Typography variant="body2">
-                                    Tienes 24 horas para enviar tu recibo de pago a este{' '}
-                                    <Link 
-                                        href="https://wa.me/527224992307" 
-                                        target="_blank" 
-                                        rel="noopener noreferrer"
-                                        sx={{ 
-                                            color: 'warning.contrastText',
-                                            textDecoration: 'underline',
-                                            '&:hover': {
-                                                color: 'warning.dark'
-                                            }
-                                        }}
-                                    >
-                                        WhatsApp
-                                    </Link>
-                                </Typography>
-                            </Box>
-                        )}
-                    </>
-                }
-            />
+                    </Box>
+                )}
+            </Box>
         </StyledOrderItem>
     );
 });
@@ -179,7 +174,7 @@ const useUserData = (userId) => {
                 const ordersData = ordersSnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
-                }));
+                })).reverse();
                 setOrders(ordersData);
             } catch (err) {
                 console.error('Error al cargar datos del usuario:', err);
@@ -244,7 +239,7 @@ const User = () => {
 
     return (
         <StyledContainer maxWidth="lg">
-            <Grid container spacing={4}>
+            <StyledGrid container spacing={4}>
                 <Grid item xs={12} md={4}>
                     <UserProfile 
                         userData={userData} 
@@ -300,7 +295,7 @@ const User = () => {
                         )}
                     </StyledPaper>
                 </Grid>
-            </Grid>
+            </StyledGrid>
 
             <Snackbar
                 open={snackbar.open} 

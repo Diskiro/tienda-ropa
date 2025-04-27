@@ -7,6 +7,7 @@ import { db } from '../../firebase';
 import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { normalizeCategoryName } from '../../utils/categoryUtils';
 import { formatPrice } from '../../utils/priceUtils';
+import styles from './Catalog.module.css';
 
 export default function CatalogPage() {
     const [searchParams] = useSearchParams();
@@ -48,8 +49,6 @@ export default function CatalogPage() {
                     ...doc.data(),
                     formattedPrice: formatPrice(doc.data().price)
                 }));
-                
-                console.log('Productos encontrados:', productsList); // Para debugging
                 setProducts(productsList);
             } catch (error) {
                 console.error('Error al obtener los datos:', error);
@@ -63,7 +62,7 @@ export default function CatalogPage() {
 
     if (loading) {
         return (
-            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+            <Box className={styles.loadingContainer}>
                 <CircularProgress />
             </Box>
         );
@@ -72,13 +71,13 @@ export default function CatalogPage() {
     // Si no hay categoría seleccionada, mostrar todas las categorías
     if (!searchParams.get('category')) {
         return (
-            <Container maxWidth="xl" sx={{ py: 4 }}>
-                <Typography variant="h3" gutterBottom sx={{ fontWeight: 'bold' }}>
+            <Container maxWidth="xl" className={styles.catalogContainer}>
+                <Typography variant="h3" className={styles.catalogTitle}>
                     Categorías
                 </Typography>
-                <Grid container spacing={3}>
+                <Grid container spacing={3} className={styles.categoriesGrid}>
                     {categories.map(category => (
-                        <Grid item xs={12} sm={6} md={4} key={category.id}>
+                        <Grid item xs={12} sm={6} md={4} key={category.id} className={styles.categoryItem}>
                             <CategoryCard category={category} />
                         </Grid>
                     ))}
@@ -89,21 +88,21 @@ export default function CatalogPage() {
 
     // Si hay categoría seleccionada, mostrar productos
     return (
-        <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Typography variant="h3" gutterBottom sx={{ fontWeight: 'bold' }}>
+        <Container maxWidth="xl" className={styles.catalogContainer}>
+            <Typography variant="h3" className={styles.catalogTitle}>
                 {normalizeCategoryName(searchParams.get('category'))}
             </Typography>
 
-            <Grid container spacing={3}>
+            <Grid container spacing={3} className={styles.productsGrid}>
                 {products.length > 0 ? (
                     products.map(product => (
-                        <Grid item xs={12} sm={6} md={4} lg={3} key={product.id}>
+                        <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.productItem}>
                             <ProductCard product={product} />
                         </Grid>
                     ))
                 ) : (
                     <Grid item xs={12}>
-                        <Typography variant="body1" color="text.secondary">
+                        <Typography variant="body1" className={styles.noProductsMessage}>
                             No hay productos disponibles en esta categoría
                         </Typography>
                     </Grid>
@@ -111,11 +110,12 @@ export default function CatalogPage() {
             </Grid>
 
             {!showAll && products.length >= 5 && (
-                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+                <Box className={styles.loadMoreContainer}>
                     <Button
                         variant="contained"
                         color="primary"
                         onClick={() => setShowAll(true)}
+                        className={styles.loadMoreButton}
                     >
                         Ver más productos
                     </Button>

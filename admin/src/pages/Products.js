@@ -28,6 +28,7 @@ import {
 import { Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon } from '@mui/icons-material';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import DownloadIcon from '@mui/icons-material/Download';
 
 const AVAILABLE_SIZES = ['L', 'XL', '1XL', '2XL', '3XL', '4XL', '5XL'];
 
@@ -198,11 +199,89 @@ function Products() {
     }
   };
 
+  const downloadCSV = () => {
+    const headers = ['ID', 'Nombre', 'Precio', 'Descripción', 'Categoría', 'Imágenes', 'Inventario', 'Destacado'];
+    const csvContent = [
+      headers.join(','),
+      ...products.map(product => {
+        const inventory = AVAILABLE_SIZES.map(size => {
+          const sizeKey = `${product.id}__${size}`;
+          const stock = product.inventory?.[sizeKey] || 0;
+          return `${size}:${stock}`;
+        }).filter(Boolean).join(';');
+
+        const images = Array.isArray(product.images) ? product.images.join(';') : product.image || '';
+
+        return [
+          product.id,
+          `"${product.name}"`,
+          product.price,
+          `"${product.description || ''}"`,
+          `"${product.category || ''}"`,
+          `"${images}"`,
+          `"${inventory}"`,
+          product.featured ? 'Sí' : 'No'
+        ].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'productos.csv';
+    link.click();
+  };
+
+  const downloadJSON = () => {
+    const jsonData = products.map(product => ({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      description: product.description || '',
+      category: product.category || '',
+      images: Array.isArray(product.images) ? product.images : [product.image].filter(Boolean),
+      inventory: AVAILABLE_SIZES.reduce((acc, size) => {
+        const sizeKey = `${product.id}__${size}`;
+        const stock = product.inventory?.[sizeKey] || 0;
+        if (stock > 0) {
+          acc[size] = stock;
+        }
+        return acc;
+      }, {}),
+      featured: product.featured || false
+    }));
+
+    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'productos.json';
+    link.click();
+  };
+
   return (
     <div>
-      <Typography variant="h4" gutterBottom>
-        Productos
-      </Typography>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+        <Typography variant="h4" gutterBottom>
+          Productos
+        </Typography>
+        <Box>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={downloadCSV}
+            sx={{ mr: 1 }}
+          >
+            Descargar CSV
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={downloadJSON}
+          >
+            Descargar JSON
+          </Button>
+        </Box>
+      </Box>
       <Button
         variant="contained"
         color="primary"

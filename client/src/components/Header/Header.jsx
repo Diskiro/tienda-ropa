@@ -9,10 +9,13 @@ import {
     Badge,
     Menu,
     MenuItem,
-    Box
+    Box,
+    useMediaQuery,
+    useTheme
 } from '@mui/material';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AccountCircle from '@mui/icons-material/AccountCircle';
+import MenuIcon from '@mui/icons-material/Menu';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
@@ -22,9 +25,12 @@ import './Header.css';
 const Header = () => {
     const [anchorEl, setAnchorEl] = useState(null);
     const [categories, setCategories] = useState([]);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const { cart } = useCart();
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     useEffect(() => {
         const fetchCategories = async () => {
@@ -70,6 +76,10 @@ const Header = () => {
         handleClose();
     };
 
+    const toggleMobileMenu = () => {
+        setMobileMenuOpen(!mobileMenuOpen);
+    };
+
     return (
         <AppBar position="static" className="header">
             <Toolbar>
@@ -79,18 +89,22 @@ const Header = () => {
                     </Typography>
                 </Link>
 
-                <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', gap: 2 }}>
-                    {categories.map((category) => (
-                        <Button
-                            key={category.id}
-                            color="inherit"
-                            component={Link}
-                            to={`/catalogo?category=${category.name}`}
-                        >
-                            {category.name}
-                        </Button>
-                    ))}
-                </Box>
+                {!isMobile ? (
+                    <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', gap: 2 }}>
+                        {categories.map((category) => (
+                            <Button
+                                key={category.id}
+                                color="inherit"
+                                component={Link}
+                                to={`/catalogo?category=${category.name}`}
+                            >
+                                {category.name}
+                            </Button>
+                        ))}
+                    </Box>
+                ) : (
+                    <Box sx={{ flexGrow: 1 }} />
+                )}
 
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <IconButton 
@@ -110,9 +124,23 @@ const Header = () => {
                         </Badge>
                     </IconButton>
 
+                    {isMobile && (
+                        <IconButton
+                            color="inherit"
+                            onClick={toggleMobileMenu}
+                            sx={{ 
+                                '&:hover': {
+                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                }
+                            }}
+                        >
+                            <MenuIcon />
+                        </IconButton>
+                    )}
+
                     {user ? (
                         <>
-                            <Typography variant="body1" sx={{ mr: 1 }}>
+                            <Typography variant="body1" sx={{ mr: 1, display: { xs: 'none', sm: 'block' } }}>
                                 Bienvenido {user.firstName || user.email}
                             </Typography>
                             <IconButton
@@ -145,7 +173,7 @@ const Header = () => {
                             </Menu>
                         </>
                     ) : (
-                        <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Box sx={{ display: { xs: 'none', sm: 'flex' }, gap: 1 }}>
                             <Button color="inherit" onClick={handleLogin}>
                                 Iniciar Sesión
                             </Button>
@@ -156,6 +184,70 @@ const Header = () => {
                     )}
                 </Box>
             </Toolbar>
+
+            {/* Menú móvil */}
+            {isMobile && mobileMenuOpen && (
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: 64,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'white',
+                        zIndex: 1100,
+                        overflowY: 'auto',
+                        padding: 2,
+                        boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                    }}
+                >
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {categories.map((category) => (
+                            <Button
+                                key={category.id}
+                                component={Link}
+                                to={`/catalogo?category=${category.name}`}
+                                onClick={toggleMobileMenu}
+                                sx={{
+                                    color: 'text.primary',
+                                    justifyContent: 'flex-start',
+                                    padding: '12px 16px',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(0,0,0,0.04)'
+                                    }
+                                }}
+                            >
+                                {category.name}
+                            </Button>
+                        ))}
+                        {!user && (
+                            <>
+                                <Button
+                                    color="primary"
+                                    variant="contained"
+                                    onClick={() => {
+                                        toggleMobileMenu();
+                                        handleLogin();
+                                    }}
+                                    sx={{ mt: 2 }}
+                                >
+                                    Iniciar Sesión
+                                </Button>
+                                <Button
+                                    color="primary"
+                                    variant="outlined"
+                                    onClick={() => {
+                                        toggleMobileMenu();
+                                        handleRegister();
+                                    }}
+                                >
+                                    Registrarse
+                                </Button>
+                            </>
+                        )}
+                    </Box>
+                </Box>
+            )}
         </AppBar>
     );
 };

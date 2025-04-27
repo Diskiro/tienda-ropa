@@ -171,7 +171,7 @@ const ConfirmationPage = () => {
                     <Button
                         variant="outlined"
                         color="primary"
-                        onClick={() => navigate('/orders')}
+                        onClick={() => navigate('/user')}
                     >
                         Ver Mis Pedidos
                     </Button>
