@@ -1,6 +1,7 @@
 import { styled } from '@mui/material/styles';
 import {
     Container,
+    Grid,
     Paper,
     Avatar,
     Box,
@@ -14,6 +15,20 @@ import {
 export const StyledContainer = styled(Container)(({ theme }) => ({
     paddingTop: theme.spacing(4),
     paddingBottom: theme.spacing(4),
+}));
+
+export const StyledGrid = styled(Grid)(({ theme }) => ({
+    '&.MuiGrid-root.MuiGrid-container.MuiGrid-direction-xs-row.MuiGrid-spacing-xs-4': {
+
+        
+        
+    },
+    [theme.breakpoints.up('md')]: {
+        '&.MuiGrid-root.MuiGrid-container.MuiGrid-direction-xs-row.MuiGrid-spacing-xs-4': {
+            justifyContent: 'center',
+            display: 'flex',
+        }
+    },
 }));
 
 export const StyledPaper = styled(Paper)(({ theme }) => ({

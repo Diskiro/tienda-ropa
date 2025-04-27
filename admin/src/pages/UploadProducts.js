@@ -11,7 +11,7 @@ import {
 import { useDropzone } from 'react-dropzone';
 import Papa from 'papaparse';
 import { db } from '../firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 
 function UploadProducts() {
   const [loading, setLoading] = useState(false);
@@ -62,24 +62,62 @@ function UploadProducts() {
 
   const processProducts = async (products) => {
     try {
-      const batch = [];
+      let processedCount = 0;
       for (const product of products) {
         if (!product.name || !product.price) continue;
         
-        const productData = {
-          name: product.name,
-          price: parseFloat(product.price),
-          description: product.description || '',
-          image: product.image || '',
-          category: product.category || '',
-          createdAt: new Date(),
-        };
-        
-        batch.push(addDoc(collection(db, 'products'), productData));
+        try {
+          const productData = {
+            name: product.name,
+            price: parseFloat(product.price),
+            description: product.description || '',
+            image: product.image || '',
+            category: product.category || '',
+            featured: product.featured === 'true'
+          };
+
+          let docRef;
+          if (product.id) {
+            // Verificar si el documento existe antes de actualizar
+            const docSnap = await getDoc(doc(db, 'products', product.id));
+            if (docSnap.exists()) {
+              docRef = doc(db, 'products', product.id);
+              await updateDoc(docRef, productData);
+            } else {
+              // Si no existe, crear uno nuevo
+              docRef = await addDoc(collection(db, 'products'), productData);
+            }
+          } else {
+            // Crear nuevo producto
+            docRef = await addDoc(collection(db, 'products'), productData);
+          }
+
+          // Procesar el inventario si existe
+          if (product.inventory) {
+            const inventoryItems = product.inventory.split(';');
+            const formattedInventory = {};
+            inventoryItems.forEach(item => {
+              const [size, quantity] = item.split(':');
+              const quantityNum = parseInt(quantity);
+              // Solo agregar al inventario si la cantidad es mayor que 0
+              if (size && quantityNum > 0) {
+                formattedInventory[`${docRef.id}__${size}`] = quantityNum;
+              }
+            });
+            
+            if (Object.keys(formattedInventory).length > 0) {
+              await updateDoc(docRef, { inventory: formattedInventory });
+            }
+          }
+
+          processedCount++;
+        } catch (err) {
+          console.error(`Error procesando producto ${product.name}:`, err);
+          continue;
+        }
       }
       
-      await Promise.all(batch);
-      setSuccess(`Se han subido ${batch.length} productos correctamente.`);
+      setSuccess(`Se han procesado ${processedCount} productos correctamente.`);
     } catch (err) {
       setError('Error al guardar los productos: ' + err.message);
     }

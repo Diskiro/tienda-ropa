@@ -21,6 +21,7 @@ import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../utils/priceUtils';
 import PropTypes from 'prop-types';
+import styles from './ProductCard.module.css';
 
 export default function ProductCard({ product }) {
     const navigate = useNavigate();
@@ -76,73 +77,35 @@ export default function ProductCard({ product }) {
     };
 
     return (
-        <Card sx={{ 
-            height: '100%', 
-            display: 'flex', 
-            flexDirection: 'column',
-            transition: 'transform 0.2s',
-            '&:hover': {
-                transform: 'scale(1.02)',
-                boxShadow: 6
-            }
-        }}>
-            <Box sx={{ position: 'relative', paddingTop: '100%' }}>
+        <Card className={styles.productCard}>
+            <Box className={styles.imageContainer}>
                 <CardMedia
                     component="img"
                     image={mainImage}
                     alt={product.name}
-                    sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'contain',
-                        p: 1,
-                        cursor: 'pointer'
-                    }}
+                    className={styles.productImage}
                     onClick={() => navigate(`/producto/${product.id}`)}
                 />
             </Box>
-            <CardContent sx={{ flexGrow: 1, p: 2 }}>
+            <CardContent className={styles.content}>
                 <Typography 
-                    gutterBottom 
-                    variant="h6" 
-                    component="div"
-                    sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        minHeight: '3.6em'
-                    }}
+                    className={styles.title}
                 >
                     {product.name}
                 </Typography>
                 <Typography 
-                    variant="body2" 
-                    color="text.secondary"
-                    sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        minHeight: '2.8em',
-                        mb: 1
-                    }}
+                    className={styles.description}
                 >
                     {product.description}
                 </Typography>
-                <Typography variant="h6" color="primary" sx={{ mb: 1 }}>
+                <Typography className={styles.price}>
                     {formatPrice(product.price)}
                 </Typography>
             </CardContent>
-            <CardActions sx={{ p: 2, pt: 0 }}>
+            <CardActions className={styles.actions}>
                 <Box sx={{ width: '100%' }}>
                     {availableSizes && availableSizes.length > 0 && (
-                        <FormControl fullWidth size="small" sx={{ mb: 1 }}>
+                        <FormControl fullWidth size="small" className={styles.sizeSelect}>
                             <InputLabel id="size-label">Talla</InputLabel>
                             <Select
                                 labelId="size-label"
@@ -161,8 +124,12 @@ export default function ProductCard({ product }) {
                             </Select>
                         </FormControl>
                     )}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <IconButton aria-label="add to favorites" color="secondary">
+                    <Box className={styles.buttonContainer}>
+                        <IconButton 
+                            aria-label="add to favorites" 
+                            color="secondary"
+                            className={styles.favoriteButton}
+                        >
                             <FavoriteBorder />
                         </IconButton>
                         <Button
@@ -171,6 +138,7 @@ export default function ProductCard({ product }) {
                             fullWidth
                             onClick={handleAddToCart}
                             disabled={!selectedSize || availableSizes.length === 0}
+                            className={styles.addToCartButton}
                         >
                             {availableSizes.length === 0 ? 'Sin stock' : 'Añadir al carrito'}
                         </Button>

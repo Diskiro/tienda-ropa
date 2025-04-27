@@ -1,52 +1,42 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from './theme';
-import Header from './components/Header/Header';
-import Footer from './components/Footer/Footer';
+import GlobalStyles from './globalStyles';
+import Layout from './components/Layout/Layout';
 import HomePage from './pages/Home/HomePage';
-import CatalogPage from './pages/Catalog/Catalog';
-import ProductPage from './pages/Product/Product';
-import CartPage from './pages/Cart/Cart';
-import CheckoutPage from './pages/Checkout/Checkout';
-import { LoginPage } from './pages/Login/Login';
-import { RegisterPage } from './pages/Register/Register';
-import { AuthProvider } from './context/AuthContext';
-import { CartProvider } from './context/CartContext';
-import CartMigration from './components/CartMigration/CartMigration';
-import { Toaster } from 'react-hot-toast';
-import ConfirmationPage from './pages/Confirmation/Confirmation';
+import Catalog from './pages/Catalog/Catalog';
+import Product from './pages/Product/Product';
+import Cart from './pages/Cart/Cart';
+import Checkout from './pages/Checkout/Checkout';
 import User from './pages/User/User';
 import OrderDetail from './pages/OrderDetail/OrderDetail';
+import { CartProvider } from './context/CartContext';
+import { AuthProvider } from './context/AuthContext';
 
 function App() {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
+            <GlobalStyles />
             <AuthProvider>
                 <CartProvider>
                     <Router>
-                        <Header />
-                        <main style={{ minHeight: 'calc(100vh - 128px)' }}>
-                            <CartMigration />
+                        <Layout>
                             <Routes>
                                 <Route path="/" element={<HomePage />} />
-                                <Route path="/catalogo" element={<CatalogPage />} />
-                                <Route path="/producto/:id" element={<ProductPage />} />
-                                <Route path="/cart" element={<CartPage />} />
-                                <Route path="/checkout" element={<CheckoutPage />} />
-                                <Route path="/login" element={<LoginPage />} />
-                                <Route path="/register" element={<RegisterPage />} />
-                                <Route path="/confirmation" element={<ConfirmationPage />} />
-                                <Route path="/user" element={<User />} />
-                                <Route path="/orders/:orderId" element={<OrderDetail />} />
+                                <Route path="/catalogo" element={<Catalog />} />
+                                <Route path="/producto/:id" element={<Product />} />
+                                <Route path="/carrito" element={<Cart />} />
+                                <Route path="/checkout" element={<Checkout />} />
+                                <Route path="/usuario" element={<User />} />
+                                <Route path="/pedido/:id" element={<OrderDetail />} />
                             </Routes>
-                        </main>
-                        <Footer />
+                        </Layout>
                     </Router>
                 </CartProvider>
             </AuthProvider>
-            <Toaster position="bottom-right" />
         </ThemeProvider>
     );
 }

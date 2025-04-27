@@ -258,9 +258,9 @@ function Orders() {
                       {order.id}
                     </TableCell>
                     <TableCell>{order.customerName || order.customer?.name || 'N/A'}</TableCell>
-                    <TableCell>{order.customerPhone || order.customer?.phone || 'N/A'}</TableCell>
+                    <TableCell>{order.customerPhone || order.customer?.phone || order.phone || 'N/A'}</TableCell>
                     <TableCell>{formatDate(order.createdAt)}</TableCell>
-                    <TableCell>{formatPrice(order.total)}</TableCell>
+                    <TableCell>{formatPrice(order.totalAmount)}</TableCell>
                     <TableCell>{order.status || 'Pendiente'}</TableCell>
                     <TableCell align="center">
                       <Checkbox
@@ -306,10 +306,10 @@ function Orders() {
                             Detalles del Pedido
                           </Typography>
                           <Typography variant="body2" gutterBottom>
-                            <strong>Email:</strong> {order.customer?.email || 'N/A'}
+                            <strong>Email:</strong> {order.customerEmail || order.customer?.email || order.email || 'N/A'}
                           </Typography>
                           <Typography variant="body2" gutterBottom>
-                            <strong>Teléfono:</strong> {order.customer?.phone || 'N/A'}
+                            <strong>Teléfono:</strong> {order.customerPhone || order.customer?.phone || order.phone || 'N/A'}
                           </Typography>
                           <Typography variant="body2" gutterBottom>
                             <strong>Método Envío:</strong> {order.shippingMethod === 'metro' ? `Metro (${order.metroStation})` : 'Domicilio'}
@@ -336,7 +336,7 @@ function Orders() {
                             ))}
                           </List>
                           <Typography variant="h6" sx={{ mt: 2 }}>
-                            Total: {formatPrice(order.total)}
+                            Total: {formatPrice(order.totalAmount)}
                           </Typography>
                         </Box>
                       </Collapse>
@@ -361,7 +361,7 @@ function Orders() {
                 <strong>Cliente:</strong> {selectedOrder.customerName || selectedOrder.customer?.name || 'N/A'}
               </DialogContentText>
               <DialogContentText>
-                <strong>Email:</strong> {selectedOrder.customerEmail || selectedOrder.customer?.email || 'N/A'}
+                <strong>Email:</strong> {selectedOrder.customerEmail || selectedOrder.customer?.email || selectedOrder.email || 'N/A'}
               </DialogContentText>
               <DialogContentText>
                 <strong>Fecha:</strong> {formatDate(selectedOrder.createdAt)}
@@ -383,7 +383,7 @@ function Orders() {
                 ))}
               </List>
               <Typography variant="h6" sx={{ mt: 2 }}>
-                Total: {formatPrice(selectedOrder.total)}
+                Total: {formatPrice(selectedOrder.totalAmount)}
               </Typography>
             </>
           )}

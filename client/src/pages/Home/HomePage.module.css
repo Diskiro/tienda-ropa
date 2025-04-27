@@ -1,0 +1,96 @@
+.homeContainer[class*="MuiContainer-root"] {
+  padding: 2rem 0;
+  max-width: 1200px;
+}
+
+.banner {
+  width: 100%;
+  border-radius: 8px;
+  margin: 2rem 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.sectionTitle {
+  margin-top: 3rem;
+  margin-bottom: 2rem;
+  font-weight: bold;
+}
+
+/* Selectores específicos para las cuadrículas */
+.featuredGrid[class*="MuiGrid-root"] {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.categoriesGrid[class*="MuiGrid-root"] {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+/* Selectores específicos para los items */
+.featuredItem[class*="MuiGrid-item"],
+.categoryItem[class*="MuiGrid-item"] {
+  width: 100%;
+}
+
+/* Sección sobre la marca */
+.aboutSection[class*="MuiGrid-root"] {
+  margin: 4rem 0;
+  align-items: center;
+}
+
+.aboutImage {
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.aboutContent {
+  padding: 2rem;
+}
+
+.aboutTitle {
+  margin-bottom: 1.5rem;
+  font-weight: bold;
+}
+
+.aboutText {
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.aboutButton {
+  padding: 0.75rem 2rem;
+  font-weight: 500;
+}
+
+/* Media queries para responsividad */
+@media (min-width: 600px) {
+  .featuredGrid[class*="MuiGrid-root"] {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .categoriesGrid[class*="MuiGrid-root"] {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .featuredGrid[class*="MuiGrid-root"] {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .categoriesGrid[class*="MuiGrid-root"] {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1200px) {
+  .featuredGrid[class*="MuiGrid-root"] {
+    grid-template-columns: repeat(4, 1fr);
+  }
+} 
