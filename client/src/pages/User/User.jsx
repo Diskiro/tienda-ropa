@@ -8,7 +8,6 @@ import {
     ListItem,
     ListItemText,
     Tab,
-    Chip,
     CircularProgress,
     Alert,
     Snackbar,
@@ -32,7 +31,8 @@ import {
     StyledEmptyState,
     StyledLoadingContainer,
     StyledErrorContainer,
-    StyledGrid
+    StyledGrid,
+    StyledStatusChip
 } from './User.styles';
 
 // Componente para mostrar la información del usuario
@@ -101,10 +101,15 @@ const OrderItem = React.memo(({ order, onOrderClick }) => {
         >
             <Box sx={{ width: '100%' }}>
                 <StyledOrderHeader>
+                    <Box>
+                        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                            ID del pedido
+                        </Typography>
                     <Typography variant="subtitle1" component="span">
-                        ID del pedido: {order.id}
+                            {order.id}
                     </Typography>
-                    <Chip
+                    </Box>
+                    <StyledStatusChip
                         label={order.status}
                         color={getStatusColor(order.status)}
                         size="small"

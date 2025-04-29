@@ -1,0 +1,36 @@
+.formContainer {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.inputField {
+  width: 100%;
+  margin-bottom: 1.2rem;
+}
+
+.registerButton {
+  width: 100%;
+  padding: 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+@media (max-width: 600px) {
+  .formContainer {
+    max-width: 100%;
+    padding: 0 8px;
+  }
+  .inputField {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+  .registerButton {
+    font-size: 1rem;
+    padding: 0.75rem 0;
+  }
+  .MuiGrid-root.MuiGrid-container.MuiGrid-direction-xs-row.MuiGrid-spacing-xs-2.css-zrorb4-MuiGrid-root .MuiGrid-root.MuiGrid-direction-xs-row.css-jy3ru-MuiGrid-root{
+    width: 100%; 
+  }
+} 

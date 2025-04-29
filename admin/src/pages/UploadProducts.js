@@ -71,9 +71,9 @@ function UploadProducts() {
             name: product.name,
             price: parseFloat(product.price),
             description: product.description || '',
-            image: product.image || '',
+            images: product.image ? product.image.split(';').map(url => url.trim()) : [],
             category: product.category || '',
-            featured: product.featured === 'true'
+            featured: product.featured === 'true' || product.featured === true || product.featured === 'TRUE' || product.featured === 'True'
           };
 
           let docRef;

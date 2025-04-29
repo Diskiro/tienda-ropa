@@ -1,5 +1,7 @@
-.header {
-  background-color: #1976d2;
+.header.MuiPaper-root.MuiPaper-elevation {
+  background-color: white;
+  border-radius: 0;
+  color: black;
 }
 
 .logo-link {

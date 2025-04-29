@@ -47,6 +47,10 @@ export default function ProductCard({ product }) {
         });
 
     const handleAddToCart = async () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
         if (!selectedSize) {
             setSnackbar({
                 open: true,

@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Container, Grid, Typography, Button } from '@mui/material';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import CategoryCard from '../../components/CategoryCard/CategoryCard';
 import { fetchProducts, fetchCategories } from '../../data';
 import styles from './HomePage.module.css';
+import { Link } from 'react-router-dom';
 
 export default function HomePage() {
     const [featuredProducts, setFeaturedProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const carouselRef = useRef(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -37,43 +39,83 @@ export default function HomePage() {
 
     return (
         <Container maxWidth="xl" className={styles.homeContainer}>
-            {/* Banner promocional */}
-            <img
-                src="/assets/banner.jpg"
-                alt="Promoción"
-                className={styles.banner}
-            />
+            {/* Banner promocional personalizado */}
+            <div className={styles.promoSection}>
+                <Typography variant="h2" className={styles.promoTitle}>
+                    Chary's Boutique
+                </Typography>
+                <Typography variant="h5" className={styles.promoSubtitle}>
+                    Tu destino para moda y belleza: ropa exclusiva y todo para tus uñas perfectas
+                </Typography>
+                <div className={styles.promoButtons}>
+                    <Button variant="contained" color="secondary" className={styles.promoBtnMain} href="/categorias">
+                        Ver Colección de Ropa
+                    </Button>
+                    <Button variant="outlined" color="secondary" className={styles.promoBtnAlt}>
+                        Accesorios de Uñas
+                    </Button>
+                </div>
+            </div>
 
             {/* Productos destacados */}
             <Typography variant="h4" className={styles.sectionTitle}>
                 Productos Destacados
             </Typography>
-            <Grid container spacing={3} className={styles.featuredGrid}>
-                {featuredProducts.map(product => (
-                    <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.featuredItem}>
-                        <ProductCard product={product} />
-                    </Grid>
-                ))}
-            </Grid>
+            {featuredProducts.length > 4 ? (
+                <div className={styles.carouselContainer}>
+                    <div className={styles.carousel} ref={carouselRef}>
+                        {featuredProducts.slice(0, 15).map(product => (
+                            <div className={styles.carouselItem} key={product.id}>
+                                <ProductCard product={product} />
+                            </div>
+                        ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+                        <Button variant="outlined" color="secondary" className={styles.showAllFeaturedBtn}>
+                            Ver más destacados
+                        </Button>
+                    </div>
+                </div>
+            ) : (
+                <Grid container spacing={3} className={styles.featuredGrid}>
+                    {featuredProducts.map(product => (
+                        <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.featuredItem}>
+                            <ProductCard product={product} />
+                        </Grid>
+                    ))}
+                </Grid>
+            )}
 
             {/* Categorías */}
             <Typography variant="h4" className={styles.sectionTitle}>
                 Explora nuestras categorías
             </Typography>
             <Grid container spacing={3} className={styles.categoriesGrid}>
-                {categories.map(category => (
+                {categories.slice(0, 6).map(category => (
                     <Grid item xs={12} sm={6} md={4} key={category.id} className={styles.categoryItem}>
                         <CategoryCard category={category} />
                     </Grid>
                 ))}
             </Grid>
+            {categories.length > 6 && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
+                    <Button 
+                        variant="outlined" 
+                        color="secondary" 
+                        href="/categorias"
+                        className={styles.showAllCategoriesBtn}
+                    >
+                        Ver todas las categorías
+                    </Button>
+                </div>
+            )}
 
             {/* Sobre la marca */}
             <Grid container spacing={4} className={styles.aboutSection}>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} md={6} className={styles.aboutGridImage}>
                     <img
-                        src="/assets/about.jpg"
-                        alt="Sobre nosotros"
+                        src="/CharysBoutique.jpeg"
+                        alt="Chary's Boutique"
                         className={styles.aboutImage}
                     />
                 </Grid>
@@ -88,6 +130,8 @@ export default function HomePage() {
                         variant="contained" 
                         color="primary"
                         className={styles.aboutButton}
+                        component={Link}
+                        to="/about"
                     >
                         Conoce más
                     </Button>

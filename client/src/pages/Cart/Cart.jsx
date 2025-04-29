@@ -13,7 +13,6 @@ import {
     TableRow,
     Paper,
     IconButton,
-    Grid,
     Snackbar,
     Alert
 } from '@mui/material';
@@ -21,13 +20,16 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { formatPrice } from '../../utils/priceUtils';
-import ErrorNotification from '../../components/ErrorNotification/ErrorNotification';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 
 const Cart = () => {
     const { cart, removeFromCart, updateQuantity } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
     useEffect(() => {
         if (!user) {
@@ -74,70 +76,102 @@ const Cart = () => {
                     Tu carrito está vacío
                 </Typography>
             ) : (
-                <TableContainer component={Paper}>
-                    <Table>
-                        <TableHead>
-                            <TableRow>
-                                <TableCell>Producto</TableCell>
-                                <TableCell>Talla</TableCell>
-                                <TableCell align="right">Precio</TableCell>
-                                <TableCell align="right">Cantidad</TableCell>
-                                <TableCell align="right">Total</TableCell>
-                                <TableCell align="right">Acciones</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {cart.map((item) => (
-                                <TableRow key={`${item.productId}_${item.size}`}>
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                            <img
-                                                src={item.image}
-                                                alt={item.name}
-                                                style={{ width: 50, height: 50, objectFit: 'cover', marginRight: 16 }}
-                                            />
-                                            {item.name}
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell>{getSizeOnly(item.size)}</TableCell>
-                                    <TableCell align="right">{formatPrice(item.price)}</TableCell>
-                                    <TableCell align="right">
-                                        <Button
-                                            size="small"
-                                            onClick={() => {
-                                                handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity - 1);
-                                            }}
-                                        >
-                                            -
-                                        </Button>
+                isMobile ? (
+                    <Box>
+                        {cart.map((item) => (
+                            <Paper key={`${item.productId}_${item.size}`} sx={{ mb: 2, p: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                                    <img
+                                        src={item.image}
+                                        alt={item.name}
+                                        style={{ width: 60, height: 60, objectFit: 'cover', marginRight: 16, borderRadius: 8 }}
+                                    />
+                                    <Box>
+                                        <Typography variant="subtitle1" fontWeight={600}>{item.name}</Typography>
+                                        <Typography variant="body2">Talla: {getSizeOnly(item.size)}</Typography>
+                                    </Box>
+                                </Box>
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                                    <Typography variant="body2">Precio: {formatPrice(item.price)}</Typography>
+                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                        <Button size="small" onClick={() => handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity - 1)}>-</Button>
                                         {item.quantity}
-                                        <Button
-                                            size="small"
-                                            onClick={() => {
-                                                handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity + 1);
-                                            }}
-                                        >
-                                            +
-                                        </Button>
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        {formatPrice(item.price * item.quantity)}
-                                    </TableCell>
-                                    <TableCell align="right">
-                                        <IconButton
-                                            color="error"
-                                            onClick={() => {
-                                                removeFromCart(item.productId, getSizeOnly(item.size));
-                                            }}
-                                        >
-                                            <DeleteIcon />
-                                        </IconButton>
-                                    </TableCell>
+                                        <Button size="small" onClick={() => handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity + 1)}>+</Button>
+                                    </Box>
+                                    <Typography variant="body2">Total: {formatPrice(item.price * item.quantity)}</Typography>
+                                    <IconButton color="error" onClick={() => removeFromCart(item.productId, getSizeOnly(item.size))}>
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </Box>
+                            </Paper>
+                        ))}
+                    </Box>
+                ) : (
+                    <TableContainer component={Paper}>
+                        <Table>
+                            <TableHead>
+                                <TableRow>
+                                    <TableCell>Producto</TableCell>
+                                    <TableCell>Talla</TableCell>
+                                    <TableCell align="right">Precio</TableCell>
+                                    <TableCell align="right">Cantidad</TableCell>
+                                    <TableCell align="right">Total</TableCell>
+                                    <TableCell align="right">Acciones</TableCell>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                            </TableHead>
+                            <TableBody>
+                                {cart.map((item) => (
+                                    <TableRow key={`${item.productId}_${item.size}`}>
+                                        <TableCell>
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <img
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    style={{ width: 50, height: 50, objectFit: 'cover', marginRight: 16 }}
+                                                />
+                                                {item.name}
+                                            </Box>
+                                        </TableCell>
+                                        <TableCell>{getSizeOnly(item.size)}</TableCell>
+                                        <TableCell align="right">{formatPrice(item.price)}</TableCell>
+                                        <TableCell align="right">
+                                            <Button
+                                                size="small"
+                                                onClick={() => {
+                                                    handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity - 1);
+                                                }}
+                                            >
+                                                -
+                                            </Button>
+                                            {item.quantity}
+                                            <Button
+                                                size="small"
+                                                onClick={() => {
+                                                    handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity + 1);
+                                                }}
+                                            >
+                                                +
+                                            </Button>
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            {formatPrice(item.price * item.quantity)}
+                                        </TableCell>
+                                        <TableCell align="right">
+                                            <IconButton
+                                                color="error"
+                                                onClick={() => {
+                                                    removeFromCart(item.productId, getSizeOnly(item.size));
+                                                }}
+                                            >
+                                                <DeleteIcon />
+                                            </IconButton>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )
             )}
 
             {cart.length > 0 && (

@@ -9,7 +9,8 @@ import {
     Button,
     ListItem,
     Typography,
-    Tabs
+    Tabs,
+    Chip
 } from '@mui/material';
 
 export const StyledContainer = styled(Container)(({ theme }) => ({
@@ -66,7 +67,9 @@ export const StyledOrderItem = styled(ListItem)(({ theme }) => ({
 export const StyledOrderHeader = styled(Box)({
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    flexDirection: 'column',
+    marginBottom: '10px',
 });
 
 export const StyledOrderDate = styled(Typography)({
@@ -93,4 +96,27 @@ export const StyledLoadingContainer = styled(Container)(({ theme }) => ({
 export const StyledErrorContainer = styled(Container)(({ theme }) => ({
     paddingTop: theme.spacing(4),
     paddingBottom: theme.spacing(4),
+}));
+
+export const StyledStatusChip = styled(Chip)(({ theme }) => ({
+    '&.MuiChip-root': {
+        fontWeight: 500,
+        display: 'flex',
+        '&.MuiChip-colorWarning': {
+            backgroundColor: theme.palette.warning.light,
+            color: theme.palette.warning.dark,
+        },
+        '&.MuiChip-colorSuccess': {
+            backgroundColor: theme.palette.success.light,
+            color: theme.palette.success.dark,
+        },
+        '&.MuiChip-colorError': {
+            backgroundColor: theme.palette.error.light,
+            color: theme.palette.error.dark,
+        },
+        '&.MuiChip-colorDefault': {
+            backgroundColor: theme.palette.grey[200],
+            color: theme.palette.grey[700],
+        }
+    }
 })); 
