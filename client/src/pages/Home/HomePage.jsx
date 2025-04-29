@@ -77,13 +77,13 @@ export default function HomePage() {
                     </div>
                 </div>
             ) : (
-                <Grid container spacing={3} className={styles.featuredGrid}>
-                    {featuredProducts.map(product => (
-                        <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.featuredItem}>
-                            <ProductCard product={product} />
-                        </Grid>
-                    ))}
-                </Grid>
+            <Grid container spacing={3} className={styles.featuredGrid}>
+                {featuredProducts.map(product => (
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.featuredItem}>
+                        <ProductCard product={product} />
+                    </Grid>
+                ))}
+            </Grid>
             )}
 
             {/* Categorías */}

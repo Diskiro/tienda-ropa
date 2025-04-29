@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
+import { auth } from '../firebase';
 
 const AuthContext = createContext();
 
@@ -9,57 +10,88 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [alert, setAlert] = useState({ open: false, message: '', severity: 'success' });
+    const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
     const [lastActivity, setLastActivity] = useState(Date.now());
+    const [onInactivityLogout, setOnInactivityLogout] = useState(null);
+    const inactivityIntervalRef = useRef(null);
 
     // Función para actualizar la última actividad
-    const updateLastActivity = () => {
-        setLastActivity(Date.now());
-    };
+    const updateLastActivity = useCallback(() => {
+        const now = Date.now();
+        setLastActivity(now);
+        localStorage.setItem('lastActivity', now.toString());
+    }, []);
 
     // Función para verificar la inactividad
-    const checkInactivity = () => {
+    const checkInactivity = useCallback(async () => {
         const currentTime = Date.now();
-        const inactiveTime = currentTime - lastActivity;
-        const oneHour = 60 * 60 * 1000; // 1 hora en milisegundos
+        const lastActivityLS = parseInt(localStorage.getItem('lastActivity') || currentTime);
+        const oneHour = 30 * 60 * 1000; // 30 minuto
 
-        if (inactiveTime >= oneHour && user) {
-            logout();
-            setAlert({
-                open: true,
-                message: 'Tu sesión ha expirado por inactividad',
-                severity: 'warning'
-            });
+        if (currentTime - lastActivityLS > oneHour && user) {
+            // Limpiar el intervalo para evitar múltiples ejecuciones
+            if (inactivityIntervalRef.current) {
+                clearInterval(inactivityIntervalRef.current);
+                inactivityIntervalRef.current = null;
+            }
+
+            console.log('Iniciando proceso de cierre de sesión por inactividad');
+            try {
+                // Llamar a la función registrada que limpiará el carrito
+                if (onInactivityLogout) {
+                    await onInactivityLogout();
+                }
+                // Proceder con el cierre de sesión
+                await auth.signOut();
+                setUser(null);
+                saveUserToLocalStorage(null);
+                localStorage.removeItem('lastActivity');
+                setAlert({
+                    open: true,
+                    message: 'Tu sesión ha expirado por inactividad.',
+                    severity: 'warning'
+                });
+            } catch (error) {
+                console.error('Error durante el proceso de cierre de sesión:', error);
+                localStorage.setItem('lastActivity', currentTime.toString());
+                startInactivityCheck();
+            }
         }
-    };
+    }, [user, onInactivityLogout]);
 
-    // Agregar event listeners para detectar actividad
+    // Función para iniciar el chequeo de inactividad
+    const startInactivityCheck = useCallback(() => {
+        if (inactivityIntervalRef.current) {
+            clearInterval(inactivityIntervalRef.current);
+        }
+        inactivityIntervalRef.current = setInterval(checkInactivity, 1000);
+    }, [checkInactivity]);
+
+    // Efecto para manejar la actividad del usuario
     useEffect(() => {
         if (user) {
             const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
             
-            const handleActivity = () => {
-                updateLastActivity();
-            };
-
             events.forEach(event => {
-                window.addEventListener(event, handleActivity);
+                window.addEventListener(event, updateLastActivity);
             });
-
-            // Verificar inactividad cada minuto
-            const inactivityInterval = setInterval(checkInactivity, 60000);
+            
+            startInactivityCheck();
 
             return () => {
                 events.forEach(event => {
-                    window.removeEventListener(event, handleActivity);
+                    window.removeEventListener(event, updateLastActivity);
                 });
-                clearInterval(inactivityInterval);
+                if (inactivityIntervalRef.current) {
+                    clearInterval(inactivityIntervalRef.current);
+                    inactivityIntervalRef.current = null;
+                }
             };
         }
-    }, [user]);
+    }, [user, updateLastActivity, startInactivityCheck]);
 
+    // Efecto para cargar el usuario inicial
     useEffect(() => {
-        // Verificar si hay un usuario en localStorage
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             setUser(JSON.parse(storedUser));
@@ -67,13 +99,13 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
     }, []);
 
-    const saveUserToLocalStorage = (userData) => {
+    const saveUserToLocalStorage = useCallback((userData) => {
         if (userData) {
             localStorage.setItem('user', JSON.stringify(userData));
         } else {
             localStorage.removeItem('user');
         }
-    };
+    }, []);
 
     const login = async (email, password) => {
         try {
@@ -187,6 +219,7 @@ export const AuthProvider = ({ children }) => {
     const logout = () => {
         setUser(null);
         saveUserToLocalStorage(null);
+        localStorage.removeItem('lastActivity');
         setAlert({
             open: true,
             message: 'Sesión cerrada correctamente',
@@ -205,7 +238,8 @@ export const AuthProvider = ({ children }) => {
         register,
         logout,
         alert,
-        closeAlert
+        closeAlert,
+        setOnInactivityLogout
     };
 
     return (
