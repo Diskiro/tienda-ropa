@@ -24,11 +24,20 @@ export const AuthProvider = ({ children }) => {
 
     // Función para verificar la inactividad
     const checkInactivity = useCallback(async () => {
+        // Si no hay usuario logueado, no verificar inactividad
+        if (!user) {
+            if (inactivityIntervalRef.current) {
+                clearInterval(inactivityIntervalRef.current);
+                inactivityIntervalRef.current = null;
+            }
+            return;
+        }
+
         const currentTime = Date.now();
         const lastActivityLS = parseInt(localStorage.getItem('lastActivity') || currentTime);
-        const oneHour = 30 * 60 * 1000; // 30 minuto
+        const oneHour = 30 * 60 * 1000; // 30 minutos
 
-        if (currentTime - lastActivityLS > oneHour && user) {
+        if (currentTime - lastActivityLS > oneHour) {
             // Limpiar el intervalo para evitar múltiples ejecuciones
             if (inactivityIntervalRef.current) {
                 clearInterval(inactivityIntervalRef.current);
@@ -70,18 +79,26 @@ export const AuthProvider = ({ children }) => {
     // Efecto para manejar la actividad del usuario
     useEffect(() => {
         if (user) {
-            const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+            const handleActivity = (event) => {
+                // Verificar si el click fue en un botón o link
+                const target = event.target;
+                const isButton = target.tagName === 'BUTTON' || target.closest('button');
+                const isLink = target.tagName === 'A' || target.closest('a');
+                const isInput = target.tagName === 'INPUT' || target.closest('input');
+                
+                if (isButton || isLink || isInput) {
+                    updateLastActivity();
+                }
+            };
             
-            events.forEach(event => {
-                window.addEventListener(event, updateLastActivity);
-            });
+            window.addEventListener('click', handleActivity);
+            window.addEventListener('keydown', handleActivity);
             
             startInactivityCheck();
 
             return () => {
-                events.forEach(event => {
-                    window.removeEventListener(event, updateLastActivity);
-                });
+                window.removeEventListener('click', handleActivity);
+                window.removeEventListener('keydown', handleActivity);
                 if (inactivityIntervalRef.current) {
                     clearInterval(inactivityIntervalRef.current);
                     inactivityIntervalRef.current = null;
