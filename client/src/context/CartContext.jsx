@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import debounce from 'lodash.debounce';
 
@@ -16,18 +16,8 @@ export const CartProvider = ({ children }) => {
 
     // Función para obtener el stock de un producto
     const getProductStock = async (productId, sizeKey) => {
-        const cacheKey = `${productId}_${sizeKey.split('__')[1]}`;
-        
         try {
-            // Si tenemos el stock en caché, verificar si es reciente (menos de 5 segundos)
-            if (stockCacheRef.current[cacheKey] !== undefined) {
-                const cacheTimestamp = stockCacheRef.current[`${cacheKey}_timestamp`];
-                if (cacheTimestamp && (Date.now() - cacheTimestamp) < 5000) {
-                    return stockCacheRef.current[cacheKey];
-                }
-            }
-
-            // Si no, obtener del servidor
+            // Obtener directamente de la base de datos
             const productDoc = await getDoc(doc(db, 'products', productId));
             if (!productDoc.exists()) {
                 throw new Error('Producto no encontrado');
@@ -36,10 +26,6 @@ export const CartProvider = ({ children }) => {
             const productData = productDoc.data();
             const availableStock = productData.inventory?.[sizeKey] || 0;
             
-            // Actualizar caché con timestamp
-            stockCacheRef.current[cacheKey] = availableStock;
-            stockCacheRef.current[`${cacheKey}_timestamp`] = Date.now();
-
             return availableStock;
         } catch (error) {
             console.error('Error al obtener stock:', error);
@@ -47,11 +33,17 @@ export const CartProvider = ({ children }) => {
         }
     };
 
-    // Función para actualizar el caché de stock
-    const updateStockCache = (productId, size, newStock) => {
-        const cacheKey = `${productId}_${size}`;
-        stockCacheRef.current[cacheKey] = newStock;
-        stockCacheRef.current[`${cacheKey}_timestamp`] = Date.now();
+    // Función para actualizar el stock en la base de datos
+    const updateProductStock = async (productId, sizeKey, quantity) => {
+        try {
+            const productRef = doc(db, 'products', productId);
+            await updateDoc(productRef, {
+                [`inventory.${sizeKey}`]: increment(-quantity)
+            });
+        } catch (error) {
+            console.error('Error al actualizar stock:', error);
+            throw error;
+        }
     };
 
     // Función debounceada para guardar el carrito
@@ -104,10 +96,10 @@ export const CartProvider = ({ children }) => {
 
     const updateQuantity = async (productId, size, quantity) => {
         try {
-        if (quantity <= 0) {
-            removeFromCart(productId, size);
-            return;
-        }
+            if (quantity <= 0) {
+                removeFromCart(productId, size);
+                return;
+            }
 
             const sizeKey = `${productId}__${size}`;
             const currentItem = cart.find(item => item.size === sizeKey);
@@ -116,21 +108,26 @@ export const CartProvider = ({ children }) => {
                 throw new Error('Producto no encontrado en el carrito');
             }
 
-            // Obtener stock actualizado
+            // Obtener stock actualizado directamente de la base de datos
             const availableStock = await getProductStock(productId, sizeKey);
             
+            if (availableStock <= 0) {
+                throw new Error('El producto está agotado');
+            }
+
             // Calcular la diferencia entre la cantidad actual y la nueva
             const quantityDifference = quantity - currentItem.quantity;
             
-            // Verificar si hay suficiente stock para el cambio
-            if (availableStock < quantityDifference) {
-                throw new Error(`No hay suficiente stock disponible. Solo quedan ${availableStock} unidades.`);
-            }
-
-            // Verificar stock nuevamente antes de actualizar
-            const finalStockCheck = await getProductStock(productId, sizeKey);
-            if (finalStockCheck < quantityDifference) {
-                throw new Error(`El stock ha cambiado. Solo quedan ${finalStockCheck} unidades.`);
+            if (quantityDifference > 0) {
+                // Si estamos aumentando la cantidad, verificar el stock disponible
+                if (availableStock < quantityDifference) {
+                    throw new Error(`No hay suficiente stock disponible. Solo quedan ${availableStock} unidades.`);
+                }
+                // Actualizar el inventario en la base de datos
+                await updateProductStock(productId, sizeKey, quantityDifference);
+            } else if (quantityDifference < 0) {
+                // Si estamos reduciendo la cantidad, devolver al inventario
+                await updateProductStock(productId, sizeKey, quantityDifference);
             }
 
             // Actualizar el carrito
@@ -141,11 +138,6 @@ export const CartProvider = ({ children }) => {
             );
 
             setCart(newCart);
-            
-            // Actualizar la caché de stock
-            updateStockCache(productId, size, availableStock - quantityDifference);
-            
-            // Guardar cambios en la base de datos
             await debouncedSaveCart(newCart);
 
             return true;
@@ -157,27 +149,43 @@ export const CartProvider = ({ children }) => {
 
     const addToCart = async (product, size, quantity = 1) => {
         try {
+            if (quantity <= 0) {
+                throw new Error('La cantidad debe ser mayor a 0');
+            }
+
             const sizeKey = `${product.id}__${size}`;
             const existingItemIndex = cart.findIndex(item => item.size === sizeKey);
 
-            // Obtener stock actualizado
+            // Obtener stock actualizado directamente de la base de datos
             const availableStock = await getProductStock(product.id, sizeKey);
             const currentCartQuantity = existingItemIndex >= 0 ? cart[existingItemIndex].quantity : 0;
+            
+            // Verificar si hay stock suficiente considerando lo que ya está en el carrito
+            const realAvailableStock = availableStock + currentCartQuantity;
             const newTotalQuantity = currentCartQuantity + quantity;
 
-            if (availableStock < newTotalQuantity) {
-                throw new Error(`No hay suficiente stock disponible. Solo quedan ${availableStock} unidades.`);
+            console.log('Stock en DB:', availableStock);
+            console.log('Stock real disponible:', realAvailableStock);
+            console.log('Cantidad en carrito:', currentCartQuantity);
+            console.log('Nueva cantidad total:', newTotalQuantity);
+
+            if (realAvailableStock <= 0) {
+                throw new Error('El producto está agotado');
             }
 
-            // Verificar stock nuevamente antes de actualizar
-            const finalStockCheck = await getProductStock(product.id, sizeKey);
-            if (finalStockCheck < newTotalQuantity) {
-                throw new Error(`El stock ha cambiado. Solo quedan ${finalStockCheck} unidades.`);
+            // Verificar si hay suficiente stock
+            if (newTotalQuantity > realAvailableStock) {
+                const disponibles = realAvailableStock - currentCartQuantity;
+                throw new Error(`No hay suficiente stock disponible. Solo quedan ${disponibles} unidades disponibles.`);
             }
 
+            // Actualizar el inventario en la base de datos
+            await updateProductStock(product.id, sizeKey, quantity);
+
+            // Actualizar el carrito
             const newCart = [...cart];
             if (existingItemIndex >= 0) {
-                newCart[existingItemIndex].quantity += quantity;
+                newCart[existingItemIndex].quantity = newTotalQuantity;
             } else {
                 newCart.push({
                     productId: product.id,
@@ -191,11 +199,6 @@ export const CartProvider = ({ children }) => {
             }
 
             setCart(newCart);
-            
-            // Actualizar la caché de stock
-            updateStockCache(product.id, size, availableStock - quantity);
-            
-            // Guardar cambios en la base de datos
             await debouncedSaveCart(newCart);
 
             return true;
@@ -209,12 +212,17 @@ export const CartProvider = ({ children }) => {
         try {
             const sizeKey = `${productId}__${size}`;
             const itemToRemove = cart.find(item => item.size === sizeKey);
-            const newCart = cart.filter(item => item.size !== sizeKey);
             
-            setCart(newCart);
             if (itemToRemove) {
-                await updateStockCache(productId, size, -itemToRemove.quantity);
+                // Restaurar el inventario en la base de datos
+                const productRef = doc(db, 'products', productId);
+                await updateDoc(productRef, {
+                    [`inventory.${sizeKey}`]: increment(itemToRemove.quantity)
+                });
             }
+
+            const newCart = cart.filter(item => item.size !== sizeKey);
+            setCart(newCart);
             debouncedSaveCart(newCart);
         } catch (error) {
             console.error('Error removing from cart:', error);
@@ -222,19 +230,67 @@ export const CartProvider = ({ children }) => {
         }
     };
 
+    const clearCartInDatabase = useCallback(async () => {
+        if (!user) {
+            throw new Error('No hay usuario autenticado');
+        }
+
+        try {
+            // Primero restaurar el stock de todos los productos en el carrito
+            console.log('Restaurando stock de productos...');
+            const restoreStockPromises = cart.map(async (item) => {
+                const [productId, size] = item.size.split('__');
+                const productRef = doc(db, 'products', productId);
+                
+                console.log(`Restaurando ${item.quantity} unidades al producto ${productId} talla ${size}`);
+                return updateDoc(productRef, {
+                    [`inventory.${item.size}`]: increment(item.quantity)
+                });
+            });
+            
+            // Esperar a que todas las actualizaciones de stock se completen
+            await Promise.all(restoreStockPromises);
+            console.log('Stock restaurado exitosamente');
+
+            // Luego eliminar el carrito de la base de datos
+            const userRef = doc(db, 'storeUsers', user.uid);
+            await updateDoc(userRef, {
+                cart: [],
+                updatedAt: new Date().toISOString()
+            });
+
+            // Actualizar el estado local
+            setCart([]);
+            console.log('Carrito eliminado en la base de datos y estado local actualizado');
+            return true;
+        } catch (error) {
+            console.error('Error al eliminar el carrito en la base de datos:', error);
+            throw error;
+        }
+    }, [user, cart]);
+
     const clearCart = async () => {
         try {
-            // Restaurar stock en caché
-            const restoreStockPromises = cart.map(item => {
+            // Restaurar stock en la base de datos
+            const restoreStockPromises = cart.map(async (item) => {
                 const [productId, size] = item.size.split('__');
-                return updateStockCache(productId, size, -item.quantity);
+                const productRef = doc(db, 'products', productId);
+                
+                await updateDoc(productRef, {
+                    [`inventory.${item.size}`]: increment(item.quantity)
+                });
             });
+            
             await Promise.all(restoreStockPromises);
             
-        setCart([]);
-            debouncedSaveCart([]);
+            // Limpiar el carrito en la base de datos
+            await clearCartInDatabase();
+            
+            // Actualizar el estado local
+            setCart([]);
         } catch (error) {
-            console.error('Error clearing cart:', error);
+            console.error('Error al limpiar el carrito:', error);
+            throw error;
         }
     };
 
@@ -253,6 +309,8 @@ export const CartProvider = ({ children }) => {
         removeFromCart,
         updateQuantity,
         clearCart,
+        clearCartInDatabase,
+        loadCart,
         getTotalItems,
         getTotalPrice
     };

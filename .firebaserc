@@ -9,7 +9,8 @@
           "charys-clothes-store-admin"
         ],
         "tienda": [
-          "charys-clothes-store"
+          "charys-clothes-store",
+          "charysboutique"
         ]
       }
     }

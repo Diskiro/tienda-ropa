@@ -5,7 +5,7 @@
   },
   "hosting": [
     {
-      "target": "tienda",
+      "site": "charysboutique",
       "public": "client/build",
       "ignore": [
         "firebase.json",

@@ -24,7 +24,7 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import { useTheme } from '@mui/material/styles';
 
 const Cart = () => {
-    const { cart, removeFromCart, updateQuantity } = useCart();
+    const { cart, removeFromCart, updateQuantity, clearCartInDatabase, loadCart } = useCart();
     const { user } = useAuth();
     const navigate = useNavigate();
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
@@ -64,6 +64,25 @@ const Cart = () => {
     // Función para obtener solo la talla del formato ID__TALLA
     const getSizeOnly = (size) => {
         return size.split('__')[1];
+    };
+
+    const handleClearCartInDatabase = async () => {
+        try {
+            await clearCartInDatabase();
+            // Recargar el carrito después de eliminarlo
+            await loadCart();
+            setSnackbar({
+                open: true,
+                message: 'Carrito eliminado correctamente',
+                severity: 'success'
+            });
+        } catch (error) {
+            setSnackbar({
+                open: true,
+                message: error.message,
+                severity: 'error'
+            });
+        }
     };
 
     return (
@@ -106,79 +125,89 @@ const Cart = () => {
                             </Paper>
                         ))}
                     </Box>
-                ) : (
-                    <TableContainer component={Paper}>
-                        <Table>
-                            <TableHead>
-                                <TableRow>
-                                    <TableCell>Producto</TableCell>
-                                    <TableCell>Talla</TableCell>
-                                    <TableCell align="right">Precio</TableCell>
-                                    <TableCell align="right">Cantidad</TableCell>
-                                    <TableCell align="right">Total</TableCell>
-                                    <TableCell align="right">Acciones</TableCell>
+            ) : (
+                <TableContainer component={Paper}>
+                    <Table>
+                        <TableHead>
+                            <TableRow>
+                                <TableCell>Producto</TableCell>
+                                <TableCell>Talla</TableCell>
+                                <TableCell align="right">Precio</TableCell>
+                                <TableCell align="right">Cantidad</TableCell>
+                                <TableCell align="right">Total</TableCell>
+                                <TableCell align="right">Acciones</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {cart.map((item) => (
+                                <TableRow key={`${item.productId}_${item.size}`}>
+                                    <TableCell>
+                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <img
+                                                src={item.image}
+                                                alt={item.name}
+                                                style={{ width: 50, height: 50, objectFit: 'cover', marginRight: 16 }}
+                                            />
+                                            {item.name}
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>{getSizeOnly(item.size)}</TableCell>
+                                    <TableCell align="right">{formatPrice(item.price)}</TableCell>
+                                    <TableCell align="right">
+                                        <Button
+                                            size="small"
+                                            onClick={() => {
+                                                handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity - 1);
+                                            }}
+                                        >
+                                            -
+                                        </Button>
+                                        {item.quantity}
+                                        <Button
+                                            size="small"
+                                            onClick={() => {
+                                                handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity + 1);
+                                            }}
+                                        >
+                                            +
+                                        </Button>
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        {formatPrice(item.price * item.quantity)}
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <IconButton
+                                            color="error"
+                                            onClick={() => {
+                                                removeFromCart(item.productId, getSizeOnly(item.size));
+                                            }}
+                                        >
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </TableCell>
                                 </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {cart.map((item) => (
-                                    <TableRow key={`${item.productId}_${item.size}`}>
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                                <img
-                                                    src={item.image}
-                                                    alt={item.name}
-                                                    style={{ width: 50, height: 50, objectFit: 'cover', marginRight: 16 }}
-                                                />
-                                                {item.name}
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell>{getSizeOnly(item.size)}</TableCell>
-                                        <TableCell align="right">{formatPrice(item.price)}</TableCell>
-                                        <TableCell align="right">
-                                            <Button
-                                                size="small"
-                                                onClick={() => {
-                                                    handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity - 1);
-                                                }}
-                                            >
-                                                -
-                                            </Button>
-                                            {item.quantity}
-                                            <Button
-                                                size="small"
-                                                onClick={() => {
-                                                    handleQuantityChange(item.productId, getSizeOnly(item.size), item.quantity + 1);
-                                                }}
-                                            >
-                                                +
-                                            </Button>
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            {formatPrice(item.price * item.quantity)}
-                                        </TableCell>
-                                        <TableCell align="right">
-                                            <IconButton
-                                                color="error"
-                                                onClick={() => {
-                                                    removeFromCart(item.productId, getSizeOnly(item.size));
-                                                }}
-                                            >
-                                                <DeleteIcon />
-                                            </IconButton>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
                 )
             )}
 
             {cart.length > 0 && (
-                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                     <Typography variant="h6">
                         Total: {formatPrice(getTotalPrice())}
                     </Typography>
+                        <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={handleClearCartInDatabase}
+                            sx={{ ml: 2 }}
+                        >
+                            Eliminar Carrito
+                        </Button>
+                    </Box>
                     <Button
                         variant="contained"
                         color="primary"

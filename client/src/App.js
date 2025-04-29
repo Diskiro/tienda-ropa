@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { theme } from './theme';
@@ -24,39 +24,37 @@ import About from './pages/About/About';
 import Accessories from './pages/Accessories/Accessories';
 
 function App() {
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <CartProvider>
-          <Router>
-            <Header />
-            <main style={{ minHeight: 'calc(100vh - 128px)' }}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/catalogo" element={<CatalogPage />} />
-                <Route path="/producto/:id" element={<ProductPage />} />
-                <Route path="/cart" element={<CartPage />} />
-                <Route path="/checkout" element={<CheckoutPage />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/register" element={<RegisterPage />} />
-                <Route path="/confirmation" element={<ConfirmationPage />} />
-                <Route path="/user" element={<User />} />
-                <Route path="/orders/:orderId" element={<OrderDetail />} />
-                <Route path="/profile/edit" element={<EditProfile />} /> 
-                <Route path="*" element={<NotFound />} />
-                <Route path="/categorias" element={<CategoriesPage />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/accessories" element={<Accessories />} />
-              </Routes>
-            </main>
-            <Footer />
-          </Router>
-        </CartProvider>
-      </AuthProvider>
-      <Toaster position="bottom-right" />
-    </ThemeProvider>
-  );
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <AuthProvider>
+                <CartProvider>
+                    <Router>
+                        <Header />
+                        <Routes>
+                            <Route path="/" element={<HomePage />} />
+                            <Route path="/catalog" element={<CatalogPage />} />
+                            <Route path="/categories" element={<CategoriesPage />} />
+                            <Route path="/producto/:id" element={<ProductPage />} />
+                            <Route path="/cart" element={<CartPage />} />
+                            <Route path="/checkout" element={<CheckoutPage />} />
+                            <Route path="/login" element={<LoginPage />} />
+                            <Route path="/register" element={<RegisterPage />} />
+                            <Route path="/confirmation" element={<ConfirmationPage />} />
+                            <Route path="/user" element={<User />} />
+                            <Route path="/orders/:orderId" element={<OrderDetail />} />
+                            <Route path="/profile/edit" element={<EditProfile />} />
+                            <Route path="/about" element={<About />} />
+                            <Route path="/accessories" element={<Accessories />} />
+                            <Route path="*" element={<NotFound />} />
+                        </Routes>
+                        <Footer />
+                        <Toaster position="bottom-center" />
+                    </Router>
+                </CartProvider>
+            </AuthProvider>
+        </ThemeProvider>
+    );
 }
 
 export default App;
