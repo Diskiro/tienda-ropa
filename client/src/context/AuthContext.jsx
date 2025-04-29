@@ -10,6 +10,53 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'success' });
+    const [lastActivity, setLastActivity] = useState(Date.now());
+
+    // Función para actualizar la última actividad
+    const updateLastActivity = () => {
+        setLastActivity(Date.now());
+    };
+
+    // Función para verificar la inactividad
+    const checkInactivity = () => {
+        const currentTime = Date.now();
+        const inactiveTime = currentTime - lastActivity;
+        const oneHour = 60 * 60 * 1000; // 1 hora en milisegundos
+
+        if (inactiveTime >= oneHour && user) {
+            logout();
+            setAlert({
+                open: true,
+                message: 'Tu sesión ha expirado por inactividad',
+                severity: 'warning'
+            });
+        }
+    };
+
+    // Agregar event listeners para detectar actividad
+    useEffect(() => {
+        if (user) {
+            const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+            
+            const handleActivity = () => {
+                updateLastActivity();
+            };
+
+            events.forEach(event => {
+                window.addEventListener(event, handleActivity);
+            });
+
+            // Verificar inactividad cada minuto
+            const inactivityInterval = setInterval(checkInactivity, 60000);
+
+            return () => {
+                events.forEach(event => {
+                    window.removeEventListener(event, handleActivity);
+                });
+                clearInterval(inactivityInterval);
+            };
+        }
+    }, [user]);
 
     useEffect(() => {
         // Verificar si hay un usuario en localStorage

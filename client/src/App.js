@@ -17,6 +17,11 @@ import { Toaster } from 'react-hot-toast';
 import ConfirmationPage from './pages/Confirmation/Confirmation';
 import User from './pages/User/User';
 import OrderDetail from './pages/OrderDetail/OrderDetail';
+import NotFound from './pages/NotFound/NotFound';
+import EditProfile from './pages/Profile/EditProfile';
+import CategoriesPage from './pages/Categories/CategoriesPage';
+import About from './pages/About/About';
+import Accessories from './pages/Accessories/Accessories';
 
 function App() {
   return (
@@ -38,6 +43,11 @@ function App() {
                 <Route path="/confirmation" element={<ConfirmationPage />} />
                 <Route path="/user" element={<User />} />
                 <Route path="/orders/:orderId" element={<OrderDetail />} />
+                <Route path="/profile/edit" element={<EditProfile />} /> 
+                <Route path="*" element={<NotFound />} />
+                <Route path="/categorias" element={<CategoriesPage />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/accessories" element={<Accessories />} />
               </Routes>
             </main>
             <Footer />

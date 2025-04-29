@@ -1,55 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../firebase';
-import { doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import debounce from 'lodash.debounce';
 
-const CartContext = createContext();
+export const CartContext = createContext();
 
 export const useCart = () => useContext(CartContext);
 
-export function CartProvider({ children }) {
-    const { user } = useAuth();
+export const CartProvider = ({ children }) => {
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [stockCache, setStockCache] = useState({});
+    const { user } = useAuth();
     const stockCacheRef = useRef({});
-    const pendingUpdates = useRef([]);
-
-    // Generar un ID único para el carrito de invitado
-    const getGuestCartId = () => {
-        let guestCartId = localStorage.getItem('guestCartId');
-        if (!guestCartId) {
-            guestCartId = 'guest_' + Math.random().toString(36).substr(2, 9);
-            localStorage.setItem('guestCartId', guestCartId);
-        }
-        return guestCartId;
-    };
-
-    // Validar y limpiar los datos del carrito
-    const cleanCartData = (cartItems) => {
-        if (!Array.isArray(cartItems)) {
-            console.warn('cleanCartData received non-array:', cartItems);
-            return [];
-        }
-        return cartItems.map(item => {
-            let productId = item.productId;
-            if (!productId && item.size && item.size.includes('__')) {
-                productId = item.size.split('__')[0];
-            }
-
-            return {
-                id: item.id || '',
-                productId: productId || '',
-                name: item.name || 'Nombre no disponible',
-                price: item.price || 0,
-                image: item.image || '',
-                size: item.size || '',
-                quantity: item.quantity || 1,
-                createdAt: item.createdAt || new Date().toISOString()
-            };
-        }).filter(item => item.productId && item.size);
-    };
 
     // Función para obtener el stock de un producto
     const getProductStock = async (productId, sizeKey) => {
@@ -76,10 +39,6 @@ export function CartProvider({ children }) {
             // Actualizar caché con timestamp
             stockCacheRef.current[cacheKey] = availableStock;
             stockCacheRef.current[`${cacheKey}_timestamp`] = Date.now();
-            setStockCache(prev => ({
-                ...prev,
-                [cacheKey]: availableStock
-            }));
 
             return availableStock;
         } catch (error) {
@@ -93,10 +52,6 @@ export function CartProvider({ children }) {
         const cacheKey = `${productId}_${size}`;
         stockCacheRef.current[cacheKey] = newStock;
         stockCacheRef.current[`${cacheKey}_timestamp`] = Date.now();
-        setStockCache(prev => ({
-            ...prev,
-            [cacheKey]: newStock
-        }));
     };
 
     // Función debounceada para guardar el carrito
@@ -108,13 +63,6 @@ export function CartProvider({ children }) {
                         cart: cartData,
                         updatedAt: new Date().toISOString()
                     }, { merge: true });
-                } else {
-                    const guestCartId = localStorage.getItem('guestCartId') || `guest_${Date.now()}`;
-                    localStorage.setItem('guestCartId', guestCartId);
-                    await setDoc(doc(db, 'guestCarts', guestCartId), {
-                        items: cartData,
-                        updatedAt: new Date().toISOString()
-                    }, { merge: true });
                 }
             } catch (error) {
                 console.error('Error saving cart:', error);
@@ -124,55 +72,42 @@ export function CartProvider({ children }) {
         [user]
     );
 
-    // Cargar el carrito cuando cambie el usuario o al iniciar
-    useEffect(() => {
-        const loadCart = async () => {
-            try {
-                let cartDoc;
-                if (user) {
-                    cartDoc = await getDoc(doc(db, 'storeUsers', user.uid));
-                } else {
-                    const guestCartId = getGuestCartId();
-                    cartDoc = await getDoc(doc(db, 'guestCarts', guestCartId));
-                }
-
-                if (cartDoc.exists()) {
-                    const cartData = user ? cartDoc.data().cart : cartDoc.data().items;
-                    const loadedCart = cleanCartData(cartData || []);
-                    setCart(loadedCart);
-                    
-                    // Precargar caché de stock en paralelo
-                    const stockPromises = loadedCart.map(async item => {
-                        const [productId, size] = item.size.split('__');
-                        const sizeKey = `${productId}__${size}`;
-                        const availableStock = await getProductStock(productId, sizeKey);
-                        return { productId, size, availableStock };
-                    });
-
-                    const stockResults = await Promise.all(stockPromises);
-                    stockResults.forEach(({ productId, size, availableStock }) => {
-                        updateStockCache(productId, size, availableStock);
-                    });
-                } else {
-                    setCart([]);
-                }
-            } catch (error) {
-                console.error('Error loading cart:', error);
+    const loadCart = useCallback(async () => {
+        if (!user) return;
+        
+        try {
+            setLoading(true);
+            const cartRef = doc(db, 'storeUsers', user.uid);
+            const cartDoc = await getDoc(cartRef);
+            
+            if (cartDoc.exists()) {
+                setCart(cartDoc.data().cart || []);
+            } else {
                 setCart([]);
-            } finally {
-                setLoading(false);
             }
-        };
-
-        loadCart();
+        } catch (error) {
+            console.error('Error loading cart:', error);
+            setCart([]);
+        } finally {
+            setLoading(false);
+        }
     }, [user]);
+
+    useEffect(() => {
+        if (user) {
+            loadCart();
+        } else {
+            setCart([]);
+            setLoading(false);
+        }
+    }, [user, loadCart]);
 
     const updateQuantity = async (productId, size, quantity) => {
         try {
-            if (quantity <= 0) {
-                removeFromCart(productId, size);
-                return;
-            }
+        if (quantity <= 0) {
+            removeFromCart(productId, size);
+            return;
+        }
 
             const sizeKey = `${productId}__${size}`;
             const currentItem = cart.find(item => item.size === sizeKey);
@@ -296,7 +231,7 @@ export function CartProvider({ children }) {
             });
             await Promise.all(restoreStockPromises);
             
-            setCart([]);
+        setCart([]);
             debouncedSaveCart([]);
         } catch (error) {
             console.error('Error clearing cart:', error);

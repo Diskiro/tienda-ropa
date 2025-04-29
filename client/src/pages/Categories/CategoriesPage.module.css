@@ -1,0 +1,33 @@
+.categoriesContainer[class*="MuiContainer-root"] {
+  padding: 2rem 16px;
+  max-width: 1200px;
+}
+
+.sectionTitle {
+  margin-top: 3rem;
+  margin-bottom: 2rem;
+  font-weight: bold;
+}
+
+.categoriesGrid[class*="MuiGrid-root"] {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.categoryItem[class*="MuiGrid-item"] {
+  width: 100%;
+}
+
+@media (min-width: 600px) {
+  .categoriesGrid[class*="MuiGrid-root"] {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .categoriesGrid[class*="MuiGrid-root"] {
+    grid-template-columns: repeat(3, 1fr);
+  }
+} 

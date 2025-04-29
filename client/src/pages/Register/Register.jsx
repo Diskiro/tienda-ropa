@@ -12,6 +12,7 @@ import {
     Grid
 } from '@mui/material';
 import { useAuth } from '../../context/AuthContext';
+import styles from './Register.module.css';
 
 export function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -133,9 +134,9 @@ export function RegisterPage() {
                     Crear Cuenta
                 </Typography>
 
-                <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }}>
+                <Box component="form" onSubmit={handleSubmit} sx={{ mt: 3 }} className={styles.formContainer}>
                     <Grid container spacing={2}>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6} sx={{ width: '100%' }}>
                             <TextField
                                 fullWidth
                                 label="Nombre"
@@ -145,9 +146,10 @@ export function RegisterPage() {
                                 error={!!errors.firstName}
                                 helperText={errors.firstName}
                                 required
+                                className={styles.inputField}
                             />
                         </Grid>
-                        <Grid item xs={12} sm={6}>
+                        <Grid item xs={12} sm={6} sx={{ width: '100%' }}>
                             <TextField
                                 fullWidth
                                 label="Apellido"
@@ -157,9 +159,10 @@ export function RegisterPage() {
                                 error={!!errors.lastName}
                                 helperText={errors.lastName}
                                 required
+                                className={styles.inputField}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} sx={{ width: '100%' }}>
                             <TextField
                                 fullWidth
                                 label="Correo Electrónico"
@@ -170,9 +173,10 @@ export function RegisterPage() {
                                 error={!!errors.email}
                                 helperText={errors.email}
                                 required
+                                className={styles.inputField}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} sx={{ width: '100%' }}>
                             <TextField
                                 fullWidth
                                 label="Contraseña"
@@ -183,9 +187,10 @@ export function RegisterPage() {
                                 error={!!errors.password}
                                 helperText={errors.password}
                                 required
+                                className={styles.inputField}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} sx={{ width: '100%' }}>
                             <TextField
                                 fullWidth
                                 label="Confirmar Contraseña"
@@ -196,9 +201,10 @@ export function RegisterPage() {
                                 error={!!errors.confirmPassword}
                                 helperText={errors.confirmPassword}
                                 required
+                                className={styles.inputField}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} sx={{ width: '100%' }}>
                             <TextField
                                 fullWidth
                                 label="Teléfono"
@@ -213,9 +219,10 @@ export function RegisterPage() {
                                     inputMode: 'numeric',
                                     pattern: '[0-9]*'
                                 }}
+                                className={styles.inputField}
                             />
                         </Grid>
-                        <Grid item xs={12}>
+                        <Grid item xs={12} sx={{ width: '100%' }}>
                             <TextField
                                 fullWidth
                                 label="Estación de Metro más cercana"
@@ -225,6 +232,7 @@ export function RegisterPage() {
                                 error={!!errors.metroStation}
                                 helperText={errors.metroStation}
                                 required
+                                className={styles.inputField}
                             />
                         </Grid>
                     </Grid>
@@ -237,6 +245,7 @@ export function RegisterPage() {
                         size="large"
                         disabled={loading}
                         sx={{ mt: 3 }}
+                        className={styles.registerButton}
                     >
                         {loading ? 'Registrando...' : 'Registrarse'}
                     </Button>
