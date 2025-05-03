@@ -16,7 +16,10 @@ import {
 import { db } from '../../firebase';
 import { doc, getDoc, collection, query, orderBy, startAt, endAt, getDocs } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
+import { useFavorites } from '../../context/FavoritesContext';
+import { FavoritesProvider } from '../../context/FavoritesContext';
 import { formatPrice } from '../../utils/priceUtils';
+import ProductCard from '../../components/ProductCard/ProductCard';
 import {
     StyledContainer,
     StyledPaper,
@@ -32,7 +35,12 @@ import {
     StyledLoadingContainer,
     StyledErrorContainer,
     StyledGrid,
-    StyledStatusChip
+    StyledStatusChip,
+    StyledFavoritesGrid,
+    StyledFavoritesContainer,
+    StyledFavoritesTitle,
+    StyledEmptyFavorites,
+    StyledFavoritesLoading
 } from './User.styles';
 
 // Componente para mostrar la información del usuario
@@ -202,7 +210,7 @@ const User = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState(0);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
-    const { userData, orders, loading, error } = useUserData(user?.uid);
+    const { userData, orders, loading: userLoading, error } = useUserData(user?.uid);
 
     useEffect(() => {
         if (!user) {
@@ -226,7 +234,7 @@ const User = () => {
         setSnackbar(prev => ({ ...prev, open: false }));
     };
 
-    if (loading) {
+    if (userLoading) {
         return (
             <StyledLoadingContainer maxWidth="lg">
                 <CircularProgress />
@@ -243,12 +251,83 @@ const User = () => {
     }
 
     return (
+        <FavoritesProvider>
+            <UserContent 
+                userData={userData}
+                orders={orders}
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+                onOrderClick={handleOrderClick}
+                onEditProfile={handleEditProfile}
+                snackbar={snackbar}
+                onCloseSnackbar={handleCloseSnackbar}
+                error={error}
+            />
+        </FavoritesProvider>
+    );
+};
+
+const UserContent = ({ 
+    userData, 
+    orders, 
+    activeTab, 
+    onTabChange, 
+    onOrderClick, 
+    onEditProfile,
+    snackbar,
+    onCloseSnackbar,
+    error
+}) => {
+    const { favorites, loading: favoritesLoading } = useFavorites();
+
+    const renderFavorites = () => {
+        if (favoritesLoading) {
+            return (
+                <StyledFavoritesLoading>
+                    <CircularProgress />
+                </StyledFavoritesLoading>
+            );
+        }
+
+        if (error) {
+            return (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                    {error}
+                </Alert>
+            );
+        }
+
+        if (!favorites || favorites.length === 0) {
+            return (
+                <StyledEmptyFavorites>
+                    <Typography variant="h6">
+                        No tienes productos favoritos
+                    </Typography>
+                    <Typography variant="body1">
+                        Agrega productos a tus favoritos para verlos aquí
+                    </Typography>
+                </StyledEmptyFavorites>
+            );
+        }
+
+        return (
+            <StyledFavoritesContainer>
+                <StyledFavoritesGrid>
+                    {favorites.map((product) => (
+                        <ProductCard key={product.id} product={product} />
+                    ))}
+                </StyledFavoritesGrid>
+            </StyledFavoritesContainer>
+        );
+    };
+
+    return (
         <StyledContainer maxWidth="lg">
             <StyledGrid container spacing={4}>
                 <Grid item xs={12} md={4}>
                     <UserProfile 
                         userData={userData} 
-                        onEditProfile={handleEditProfile} 
+                        onEditProfile={onEditProfile} 
                     />
                 </Grid>
 
@@ -256,11 +335,11 @@ const User = () => {
                     <StyledPaper elevation={3}>
                         <StyledTabs
                             value={activeTab}
-                            onChange={handleTabChange}
+                            onChange={onTabChange}
                             indicatorColor="primary"
                             textColor="primary"
                         >
-                            <Tab label="Mis Pedidos" />
+                            <Tab label="Pedidos" />
                             <Tab label="Favoritos" />
                             <Tab label="Configuración" />
                         </StyledTabs>
@@ -277,7 +356,7 @@ const User = () => {
                                             <React.Fragment key={order.id}>
                                                 <OrderItem 
                                                     order={order} 
-                                                    onOrderClick={handleOrderClick} 
+                                                    onOrderClick={onOrderClick} 
                                                 />
                                                 <StyledDivider />
                                             </React.Fragment>
@@ -287,11 +366,7 @@ const User = () => {
                             </Box>
                         )}
 
-                        {activeTab === 1 && (
-                            <StyledEmptyState variant="body1">
-                                Próximamente: Lista de productos favoritos
-                            </StyledEmptyState>
-                        )}
+                        {activeTab === 1 && renderFavorites()}
 
                         {activeTab === 2 && (
                             <StyledEmptyState variant="body1">
@@ -305,10 +380,10 @@ const User = () => {
             <Snackbar
                 open={snackbar.open} 
                 autoHideDuration={6000}
-                onClose={handleCloseSnackbar}
+                onClose={onCloseSnackbar}
             >
                 <Alert 
-                    onClose={handleCloseSnackbar} 
+                    onClose={onCloseSnackbar} 
                     severity={snackbar.severity}
                     sx={{ width: '100%' }}
                 >

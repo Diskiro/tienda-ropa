@@ -1,49 +1,83 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { theme } from './theme';
-import GlobalStyles from './globalStyles';
-import Layout from './components/Layout/Layout';
+import { CssBaseline } from '@mui/material';
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+import { FavoritesProvider } from './context/FavoritesContext';
+import theme from './theme';
+import Navbar from './components/Navbar/Navbar';
+import Footer from './components/Footer/Footer';
 import HomePage from './pages/Home/HomePage';
 import Catalog from './pages/Catalog/Catalog';
 import Product from './pages/Product/Product';
 import Cart from './pages/Cart/Cart';
-import Checkout from './pages/Checkout/Checkout';
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
 import User from './pages/User/User';
-import OrderDetail from './pages/OrderDetail/OrderDetail';
-import EditProfile from './pages/Profile/EditProfile';
-import NotFound from './pages/NotFound/NotFound';
-import { CartProvider } from './context/CartContext';
-import { AuthProvider } from './context/AuthContext';
+import Checkout from './pages/Checkout/Checkout';
+import OrderSuccess from './pages/Checkout/OrderSuccess';
+import OrderDetails from './pages/Orders/OrderDetails';
+import Categories from './pages/Categories/Categories';
 import About from './pages/About/About';
-import Accessories from './pages/Accessories/Accessories';
+import Contact from './pages/Contact/Contact';
+import Terms from './pages/Terms/Terms';
+import Privacy from './pages/Privacy/Privacy';
+import NotFound from './pages/NotFound/NotFound';
+import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute';
+import './App.css';
 
 function App() {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <GlobalStyles />
             <AuthProvider>
-                    <CartProvider>
+                <CartProvider>
+                    <FavoritesProvider>
                         <Router>
-                        <Layout>
+                            <div className="app">
+                                <Navbar />
+                                <main className="main-content">
                                     <Routes>
-                                <Route path="/" element={<HomePage />} />
+                                        <Route path="/" element={<HomePage />} />
                                         <Route path="/catalogo" element={<Catalog />} />
-                                        <Route path="/producto/:id" element={<Product />} />
-                                <Route path="/carrito" element={<Cart />} />
-                                        <Route path="/checkout" element={<Checkout />} />
-                                <Route path="/usuario" element={<User />} />
-                                <Route path="/pedido/:id" element={<OrderDetail />} />
-                                <Route path="/profile/edit" element={<EditProfile />} />
-                                <Route path="/about" element={<About />} />
-                                <Route path="/accessories" element={<Accessories />} />
-                                <Route path="*" element={<NotFound />} />
+                                        <Route path="/product/:id" element={<Product />} />
+                                        <Route path="/cart" element={<Cart />} />
+                                        <Route path="/login" element={<Login />} />
+                                        <Route path="/register" element={<Register />} />
+                                        <Route path="/user" element={
+                                            <ProtectedRoute>
+                                                <User />
+                                            </ProtectedRoute>
+                                        } />
+                                        <Route path="/checkout" element={
+                                            <ProtectedRoute>
+                                                <Checkout />
+                                            </ProtectedRoute>
+                                        } />
+                                        <Route path="/order-success" element={
+                                            <ProtectedRoute>
+                                                <OrderSuccess />
+                                            </ProtectedRoute>
+                                        } />
+                                        <Route path="/orders/:orderId" element={
+                                            <ProtectedRoute>
+                                                <OrderDetails />
+                                            </ProtectedRoute>
+                                        } />
+                                        <Route path="/categories" element={<Categories />} />
+                                        <Route path="/about" element={<About />} />
+                                        <Route path="/contact" element={<Contact />} />
+                                        <Route path="/terms" element={<Terms />} />
+                                        <Route path="/privacy" element={<Privacy />} />
+                                        <Route path="*" element={<NotFound />} />
                                     </Routes>
-                        </Layout>
+                                </main>
+                                <Footer />
+                            </div>
                         </Router>
-                    </CartProvider>
+                    </FavoritesProvider>
+                </CartProvider>
             </AuthProvider>
         </ThemeProvider>
     );

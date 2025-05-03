@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     Card,
@@ -16,23 +16,44 @@ import {
     FormControl,
     InputLabel
 } from '@mui/material';
-import { AddShoppingCart, FavoriteBorder } from '@mui/icons-material';
+import { AddShoppingCart, FavoriteBorder, Favorite } from '@mui/icons-material';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { useFavorites } from '../../context/FavoritesContext';
 import { formatPrice } from '../../utils/priceUtils';
 import PropTypes from 'prop-types';
 import styles from './ProductCard.module.css';
+import { db } from '../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-export default function ProductCard({ product }) {
+export default function ProductCard({ product: initialProduct }) {
     const navigate = useNavigate();
     const { addToCart } = useCart();
     const { user } = useAuth();
+    const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
     const [selectedSize, setSelectedSize] = useState('');
+    const [product, setProduct] = useState(initialProduct);
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
         severity: 'success'
     });
+
+    // Efecto para actualizar el producto cuando cambia el stock
+    useEffect(() => {
+        const updateProductStock = async () => {
+            try {
+                const productDoc = await getDoc(doc(db, 'products', initialProduct.id));
+                if (productDoc.exists()) {
+                    setProduct({ id: productDoc.id, ...productDoc.data() });
+                }
+            } catch (error) {
+                console.error('Error al actualizar el stock:', error);
+            }
+        };
+
+        updateProductStock();
+    }, [initialProduct.id]);
 
     const mainImage = product.images?.[0] || '/assets/placeholder.jpg';
     
@@ -61,12 +82,63 @@ export default function ProductCard({ product }) {
         }
 
         try {
-            await addToCart(product, selectedSize);
+            const success = await addToCart(product, selectedSize);
+            if (success) {
+                // Actualizar el stock localmente
+                const sizeKey = `${product.id}__${selectedSize}`;
+                const currentStock = product.inventory[sizeKey] || 0;
+                const newStock = currentStock - 1;
+
+                setProduct(prev => ({
+                    ...prev,
+                    inventory: {
+                        ...prev.inventory,
+                        [sizeKey]: newStock
+                    }
+                }));
+
+                // Si el stock llega a 0, actualizar la lista de tallas disponibles
+                if (newStock === 0) {
+                    setSelectedSize('');
+                }
+
+                setSnackbar({
+                    open: true,
+                    message: 'Producto agregado al carrito',
+                    severity: 'success'
+                });
+            }
+        } catch (error) {
             setSnackbar({
                 open: true,
-                message: 'Producto agregado al carrito',
-                severity: 'success'
+                message: error.message,
+                severity: 'error'
             });
+        }
+    };
+
+    const handleFavoriteClick = async () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            if (isFavorite(product.id)) {
+                await removeFromFavorites(product);
+                setSnackbar({
+                    open: true,
+                    message: 'Producto eliminado de favoritos',
+                    severity: 'success'
+                });
+            } else {
+                await addToFavorites(product);
+                setSnackbar({
+                    open: true,
+                    message: 'Producto agregado a favoritos',
+                    severity: 'success'
+                });
+            }
         } catch (error) {
             setSnackbar({
                 open: true,
@@ -120,11 +192,15 @@ export default function ProductCard({ product }) {
                                 <MenuItem value="">
                                     <em>Selecciona una talla</em>
                                 </MenuItem>
-                                {availableSizes.map((size) => (
-                                    <MenuItem key={size} value={size}>
-                                        {size} ({product.inventory[`${product.id}__${size}`]} disponibles)
-                                    </MenuItem>
-                                ))}
+                                {availableSizes.map((size) => {
+                                    const sizeKey = `${product.id}__${size}`;
+                                    const stock = product.inventory[sizeKey] || 0;
+                                    return (
+                                        <MenuItem key={size} value={size} disabled={stock === 0}>
+                                            {size} ({stock} disponibles)
+                                        </MenuItem>
+                                    );
+                                })}
                             </Select>
                         </FormControl>
                     )}
@@ -133,8 +209,9 @@ export default function ProductCard({ product }) {
                             aria-label="add to favorites" 
                             color="secondary"
                             className={styles.favoriteButton}
+                            onClick={handleFavoriteClick}
                         >
-                            <FavoriteBorder />
+                            {isFavorite(product.id) ? <Favorite /> : <FavoriteBorder />}
                         </IconButton>
                         <Button
                             variant="contained"
@@ -165,14 +242,13 @@ export default function ProductCard({ product }) {
 
 ProductCard.propTypes = {
     product: PropTypes.shape({
-        id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        id: PropTypes.string.isRequired,
+        name: PropTypes.string.isRequired,
+        description: PropTypes.string,
+        price: PropTypes.number.isRequired,
         images: PropTypes.arrayOf(PropTypes.string),
-        name: PropTypes.string,
-        price: PropTypes.number,
-        category: PropTypes.string,
-        sizes: PropTypes.arrayOf(PropTypes.string),
         inventory: PropTypes.object
-    })
+    }).isRequired
 };
 
 ProductCard.defaultProps = {

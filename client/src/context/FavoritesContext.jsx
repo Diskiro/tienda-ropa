@@ -15,18 +15,26 @@ export const useFavorites = () => {
 
 export const FavoritesProvider = ({ children }) => {
     const [favorites, setFavorites] = useState([]);
+    const [loading, setLoading] = useState(true);
     const { user } = useAuth();
 
     // Cargar favoritos cuando el usuario inicia sesión
     useEffect(() => {
         const loadFavorites = async () => {
-            if (user?.uid) {
-                const userDoc = await getDoc(doc(db, 'storeUsers', user.uid));
-                if (userDoc.exists()) {
-                    setFavorites(userDoc.data().favorites || []);
+            setLoading(true);
+            try {
+                if (user?.uid) {
+                    const userDoc = await getDoc(doc(db, 'storeUsers', user.uid));
+                    if (userDoc.exists()) {
+                        setFavorites(userDoc.data().favorites || []);
+                    }
+                } else {
+                    setFavorites([]);
                 }
-            } else {
-                setFavorites([]);
+            } catch (error) {
+                console.error('Error al cargar favoritos:', error);
+            } finally {
+                setLoading(false);
             }
         };
 
@@ -75,6 +83,7 @@ export const FavoritesProvider = ({ children }) => {
 
     const value = {
         favorites,
+        loading,
         addToFavorites,
         removeFromFavorites,
         isFavorite

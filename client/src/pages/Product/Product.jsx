@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Container, Grid, Typography, Button, Divider, Select, MenuItem, Box, IconButton, CircularProgress, TextField, Snackbar, Alert, FormControl, InputLabel } from '@mui/material';
-import { AddShoppingCart, FavoriteBorder, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
+import { AddShoppingCart, FavoriteBorder, Favorite, ArrowBackIos, ArrowForwardIos } from '@mui/icons-material';
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import { formatPrice } from '../../utils/priceUtils';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
+import { useFavorites } from '../../context/FavoritesContext';
 import { useNavigate } from 'react-router-dom';
+import { FavoritesProvider } from '../../context/FavoritesContext';
 
-export default function ProductPage() {
+const ProductPageContent = () => {
     const { id } = useParams();
     const { addToCart } = useCart();
     const { user } = useAuth();
+    const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
     const navigate = useNavigate();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -21,6 +24,7 @@ export default function ProductPage() {
     const [maxQuantity, setMaxQuantity] = useState(1);
     const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const [loadedImages, setLoadedImages] = useState({});
 
     useEffect(() => {
         const fetchProduct = async () => {
@@ -29,7 +33,22 @@ export default function ProductPage() {
                 const docSnap = await getDoc(docRef);
                 
                 if (docSnap.exists()) {
-                    setProduct({ id: docSnap.id, ...docSnap.data() });
+                    const productData = { id: docSnap.id, ...docSnap.data() };
+                    setProduct(productData);
+                    
+                    // Precargar todas las imágenes
+                    if (productData.images && productData.images.length > 0) {
+                        productData.images.forEach((imageUrl, index) => {
+                            const img = new Image();
+                            img.src = imageUrl;
+                            img.onload = () => {
+                                setLoadedImages(prev => ({
+                                    ...prev,
+                                    [index]: true
+                                }));
+                            };
+                        });
+                    }
                 } else {
                     console.log('No such document!');
                 }
@@ -139,6 +158,37 @@ export default function ProductPage() {
         );
     };
 
+    const handleFavoriteClick = async () => {
+        if (!user) {
+            navigate('/login');
+            return;
+        }
+
+        try {
+            if (isFavorite(product.id)) {
+                await removeFromFavorites(product);
+                setSnackbar({
+                    open: true,
+                    message: 'Producto eliminado de favoritos',
+                    severity: 'success'
+                });
+            } else {
+                await addToFavorites(product);
+                setSnackbar({
+                    open: true,
+                    message: 'Producto agregado a favoritos',
+                    severity: 'success'
+                });
+            }
+        } catch (error) {
+            setSnackbar({
+                open: true,
+                message: error.message,
+                severity: 'error'
+            });
+        }
+    };
+
     if (loading) return (
         <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
             <CircularProgress />
@@ -181,6 +231,21 @@ export default function ProductPage() {
                             overflow: 'hidden'
                         }
                     }}>
+                        {!loadedImages[currentImageIndex] && (
+                            <Box sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: 0,
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                bgcolor: 'rgba(255, 255, 255, 0.8)'
+                            }}>
+                                <CircularProgress />
+                            </Box>
+                        )}
                         <img
                             src={product.images[currentImageIndex]}
                             alt={product.name}
@@ -189,6 +254,8 @@ export default function ProductPage() {
                                 height: '100%',
                                 display: 'block',
                                 objectFit: 'cover',
+                                opacity: loadedImages[currentImageIndex] ? 1 : 0,
+                                transition: 'opacity 0.3s ease-in-out',
                                 '@media (maxWidth: 768px)': {
                                     width: '100%',
                                     height: '400px',
@@ -327,8 +394,13 @@ export default function ProductPage() {
 
                     {/* Botones de acción */}
                     <Box sx={{ display: 'flex', gap: 2 }}>
-                        <IconButton aria-label="add to favorites" color="secondary" size="large">
-                            <FavoriteBorder />
+                        <IconButton 
+                            aria-label="add to favorites" 
+                            color="secondary" 
+                            size="large"
+                            onClick={handleFavoriteClick}
+                        >
+                            {isFavorite(product.id) ? <Favorite /> : <FavoriteBorder />}
                         </IconButton>
                         <Button
                             variant="contained"
@@ -357,4 +429,14 @@ export default function ProductPage() {
             </Snackbar>
         </Container>
     );
-}
+};
+
+const ProductPage = () => {
+    return (
+        <FavoritesProvider>
+            <ProductPageContent />
+        </FavoritesProvider>
+    );
+};
+
+export default ProductPage;

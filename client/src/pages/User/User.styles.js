@@ -20,9 +20,12 @@ export const StyledContainer = styled(Container)(({ theme }) => ({
 
 export const StyledGrid = styled(Grid)(({ theme }) => ({
     '&.MuiGrid-root.MuiGrid-container.MuiGrid-direction-xs-row.MuiGrid-spacing-xs-4': {
-
-        
-        
+        width: '100%',
+        '& .css-jy3ru-MuiGrid-root': { 
+            [theme.breakpoints.down('sm')]: {
+                width: '100%',
+            }
+        }
     },
     [theme.breakpoints.up('md')]: {
         '&.MuiGrid-root.MuiGrid-container.MuiGrid-direction-xs-row.MuiGrid-spacing-xs-4': {
@@ -34,6 +37,9 @@ export const StyledGrid = styled(Grid)(({ theme }) => ({
 
 export const StyledPaper = styled(Paper)(({ theme }) => ({
     padding: theme.spacing(3),
+    [theme.breakpoints.down('sm')]: {
+        width: '100%',
+    }
 }));
 
 export const StyledAvatar = styled(Avatar)(({ theme }) => ({
@@ -119,4 +125,49 @@ export const StyledStatusChip = styled(Chip)(({ theme }) => ({
             color: theme.palette.grey[700],
         }
     }
+}));
+
+export const StyledFavoritesGrid = styled(Grid)(({ theme }) => ({
+    display: 'grid',    
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gap: theme.spacing(3),
+    padding: theme.spacing(2),
+    [theme.breakpoints.down('sm')]: {
+        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+        gap: theme.spacing(2),
+    }
+}));
+
+export const StyledFavoritesContainer = styled(Box)(({ theme }) => ({
+    padding: theme.spacing(2),
+    backgroundColor: theme.palette.background.paper,
+    borderRadius: theme.shape.borderRadius,
+    boxShadow: theme.shadows[1],
+}));
+
+export const StyledFavoritesTitle = styled(Typography)(({ theme }) => ({
+    marginBottom: theme.spacing(3),
+    fontWeight: 500,
+    color: theme.palette.text.primary,
+}));
+
+export const StyledEmptyFavorites = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: theme.spacing(4),
+    textAlign: 'center',
+    '& .MuiTypography-root': {
+        marginBottom: theme.spacing(2),
+        color: theme.palette.text.secondary,
+    }
+}));
+
+export const StyledFavoritesLoading = styled(Box)(({ theme }) => ({
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '200px',
+    width: '100%'
 })); 
