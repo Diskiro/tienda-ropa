@@ -54,7 +54,6 @@ export const CartProvider = ({ children }) => {
                 [`inventory.${sizeKey}`]: newStock
             });
 
-            console.log(`✅ Stock actualizado: ${productId} - ${sizeKey} = ${newStock}`);
         } catch (error) {
             console.error('❌ Error al actualizar stock:', error);
             throw error;
@@ -66,7 +65,6 @@ export const CartProvider = ({ children }) => {
         debounce(async (cartData) => {
             try {
                 if (user) {
-                    console.log('💾 Guardando carrito:', cartData);
                     await setDoc(doc(db, 'storeUsers', user.uid), {
                         cart: cartData,
                         updatedAt: new Date().toISOString()
@@ -246,14 +244,11 @@ export const CartProvider = ({ children }) => {
 
     const clearCartInDatabase = useCallback(async () => {
         if (!user) {
-            console.log('❌ No hay usuario autenticado');
             throw new Error('No hay usuario autenticado');
         }
 
         try {
             // Primero restaurar el stock de todos los productos en el carrito
-            console.log('🔄 Restaurando stock de productos...');
-            console.log('📦 Productos en carrito antes de limpiar:', cart);
             
             if (cart.length === 0) {
                 console.log('⚠️ El carrito ya está vacío, no hay stock que restaurar');
@@ -264,8 +259,6 @@ export const CartProvider = ({ children }) => {
                 const [productId, size] = item.size.split('__');
                 const productRef = doc(db, 'products', productId);
                 
-                console.log(`📥 Restaurando ${item.quantity} unidades al producto ${productId} talla ${size}`);
-                console.log(`🔍 Detalles del item:`, item);
                 
                 // Obtener el stock actual
                 const productDoc = await getDoc(productRef);

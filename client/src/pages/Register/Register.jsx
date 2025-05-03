@@ -11,7 +11,7 @@ import {
     Snackbar,
     Grid
 } from '@mui/material';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/auth/useAuth';
 import styles from './Register.module.css';
 
 export function RegisterPage() {
