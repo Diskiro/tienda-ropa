@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Container, Grid, Typography, Box, CircularProgress, Button } from '@mui/material';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import CategoryCard from '../../components/CategoryCard/CategoryCard';
@@ -8,6 +8,7 @@ import { collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { normalizeCategoryName } from '../../utils/categoryUtils';
 import { formatPrice } from '../../utils/priceUtils';
 import styles from './Catalog.module.css';
+import { FavoritesProvider } from '../../context/FavoritesContext';
 
 export default function CatalogPage() {
     const [searchParams] = useSearchParams();
@@ -15,7 +16,6 @@ export default function CatalogPage() {
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showAll, setShowAll] = useState(false);
-    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchData = async () => {
@@ -49,7 +49,17 @@ export default function CatalogPage() {
                     ...doc.data(),
                     formattedPrice: formatPrice(doc.data().price)
                 }));
-                setProducts(productsList);
+
+                // Filtrar productos que tienen al menos una talla con stock
+                const productsWithStock = productsList.filter(product => {
+                    if (!product.inventory) return false;
+                    
+                    // Sumar todo el stock del producto
+                    const totalStock = Object.values(product.inventory).reduce((sum, stock) => sum + stock, 0);
+                    return totalStock > 0;
+                });
+
+                setProducts(productsWithStock);
             } catch (error) {
                 console.error('Error al obtener los datos:', error);
             } finally {
@@ -71,56 +81,59 @@ export default function CatalogPage() {
     // Si no hay categoría seleccionada, mostrar todas las categorías
     if (!searchParams.get('category')) {
         return (
-            <Container maxWidth="xl" className={styles.catalogContainer}>
-                <Typography variant="h3" className={styles.catalogTitle}>
-                    Categorías
-                </Typography>
-                <Grid container spacing={3} className={styles.categoriesGrid}>
-                    {categories.map(category => (
-                        <Grid item xs={12} sm={6} md={4} key={category.id} className={styles.categoryItem}>
-                            <CategoryCard category={category} />
-                        </Grid>
-                    ))}
-                </Grid>
-            </Container>
+            <FavoritesProvider>
+                <Container maxWidth="xl" className={styles.catalogContainer}>
+                    <Typography variant="h3" className={styles.catalogTitle}>
+                        Categorías
+                    </Typography>
+                    <Grid container spacing={3} className={styles.categoriesGrid}>
+                        {categories.map(category => (
+                            <Grid item xs={12} sm={6} md={4} key={category.id} className={styles.categoryItem}>
+                                <CategoryCard category={category} />
+                            </Grid>
+                        ))}
+                    </Grid>
+                </Container>
+            </FavoritesProvider>
         );
     }
 
     // Si hay categoría seleccionada, mostrar productos
     return (
-        <Container maxWidth="xl" className={styles.catalogContainer}>
-            <Typography variant="h3" className={styles.catalogTitle}>
-                {normalizeCategoryName(searchParams.get('category'))}
-            </Typography>
+        <FavoritesProvider>
+            <Container maxWidth="xl" className={styles.catalogContainer}>
+                <Typography variant="h3" className={styles.catalogTitle}>
+                    {normalizeCategoryName(searchParams.get('category'))}
+                </Typography>
 
-            <Grid container spacing={3} className={styles.productsGrid}>
-                {products.length > 0 ? (
-                    products.map(product => (
-                        <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.productItem}>
-                            <ProductCard product={product} />
+                <Grid container spacing={3} className={styles.productsGrid}>
+                    {products.length > 0 ? (
+                        products.map(product => (
+                            <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.productItem}>
+                                <ProductCard product={product} />
+                            </Grid>
+                        ))
+                    ) : (
+                        <Grid item xs={12}>
+                            <Typography variant="body1" className={styles.noProductsMessage}>
+                                No hay productos disponibles en esta categoría
+                            </Typography>
                         </Grid>
-                    ))
-                ) : (
-                    <Grid item xs={12}>
-                        <Typography variant="body1" className={styles.noProductsMessage}>
-                            No hay productos disponibles en esta categoría
-                        </Typography>
-                    </Grid>
-                )}
-            </Grid>
+                    )}
+                </Grid>
 
-            {!showAll && products.length >= 5 && (
-                <Box className={styles.loadMoreContainer}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => setShowAll(true)}
-                        className={styles.loadMoreButton}
-                    >
-                        Ver más productos
-                    </Button>
-                </Box>
-            )}
-        </Container>
+                {products.length > 5 && !showAll && (
+                    <Box sx={{ mt: 4, textAlign: 'center' }}>
+                        <Button
+                            variant="outlined"
+                            color="primary"
+                            onClick={() => setShowAll(true)}
+                        >
+                            Ver más productos
+                        </Button>
+                    </Box>
+                )}
+            </Container>
+        </FavoritesProvider>
     );
 }

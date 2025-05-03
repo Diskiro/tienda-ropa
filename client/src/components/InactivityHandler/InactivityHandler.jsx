@@ -1,30 +1,18 @@
 import { useEffect } from 'react';
-import { useAuth } from '../../context/AuthContext';
-import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/auth/useAuth';
 
-export default function InactivityHandler() {
-    const { setOnInactivityLogout } = useAuth();
-    const { clearCartInDatabase } = useCart();
+const InactivityHandler = () => {
+    const { handleActivity } = useAuth();
 
     useEffect(() => {
-        const handleInactivity = () => {
-            return new Promise(async (resolve, reject) => {
-                try {
-                    await clearCartInDatabase();
-                    resolve();
-                } catch (error) {
-                    console.error('Error al limpiar el carrito por inactividad:', error);
-                    reject(error);
-                }
-            });
-        };
-
-        setOnInactivityLogout(() => handleInactivity);
-
+        // El monitoreo de inactividad ya está manejado por el hook useInactivity
+        // No necesitamos hacer nada aquí, solo exponer handleActivity
         return () => {
-            setOnInactivityLogout(null);
+            // Limpieza si es necesaria
         };
-    }, [setOnInactivityLogout, clearCartInDatabase]);
+    }, []);
 
-    return null;
-} 
+    return null; // Este componente no renderiza nada
+};
+
+export default InactivityHandler; 

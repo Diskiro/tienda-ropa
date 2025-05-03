@@ -11,7 +11,7 @@ export const useCart = () => useContext(CartContext);
 export const CartProvider = ({ children }) => {
     const [cart, setCart] = useState([]);
     const [loading, setLoading] = useState(true);
-    const { user } = useAuth();
+    const { user, handleLogout } = useAuth();
     const stockCacheRef = useRef({});
 
     // Función para obtener el stock de un producto
@@ -37,11 +37,26 @@ export const CartProvider = ({ children }) => {
     const updateProductStock = async (productId, sizeKey, quantity) => {
         try {
             const productRef = doc(db, 'products', productId);
+            const productDoc = await getDoc(productRef);
+            
+            if (!productDoc.exists()) {
+                throw new Error('Producto no encontrado');
+            }
+
+            const currentStock = productDoc.data().inventory?.[sizeKey] || 0;
+            const newStock = currentStock - quantity;
+
+            if (newStock < 0) {
+                throw new Error('No hay suficiente stock disponible');
+            }
+
             await updateDoc(productRef, {
-                [`inventory.${sizeKey}`]: increment(-quantity)
+                [`inventory.${sizeKey}`]: newStock
             });
+
+            console.log(`✅ Stock actualizado: ${productId} - ${sizeKey} = ${newStock}`);
         } catch (error) {
-            console.error('Error al actualizar stock:', error);
+            console.error('❌ Error al actualizar stock:', error);
             throw error;
         }
     };
@@ -51,13 +66,14 @@ export const CartProvider = ({ children }) => {
         debounce(async (cartData) => {
             try {
                 if (user) {
+                    console.log('💾 Guardando carrito:', cartData);
                     await setDoc(doc(db, 'storeUsers', user.uid), {
                         cart: cartData,
                         updatedAt: new Date().toISOString()
                     }, { merge: true });
                 }
             } catch (error) {
-                console.error('Error saving cart:', error);
+                console.error('❌ Error guardando carrito:', error);
                 throw error;
             }
         }, 1000),
@@ -65,7 +81,9 @@ export const CartProvider = ({ children }) => {
     );
 
     const loadCart = useCallback(async () => {
-        if (!user) return;
+        if (!user) {
+            return;
+        }
         
         try {
             setLoading(true);
@@ -73,12 +91,13 @@ export const CartProvider = ({ children }) => {
             const cartDoc = await getDoc(cartRef);
             
             if (cartDoc.exists()) {
-                setCart(cartDoc.data().cart || []);
+                const cartData = cartDoc.data().cart || [];
+                setCart(cartData);
             } else {
                 setCart([]);
             }
         } catch (error) {
-            console.error('Error loading cart:', error);
+            console.error('❌ Error cargando carrito:', error);
             setCart([]);
         } finally {
             setLoading(false);
@@ -88,9 +107,6 @@ export const CartProvider = ({ children }) => {
     useEffect(() => {
         if (user) {
             loadCart();
-        } else {
-            setCart([]);
-            setLoading(false);
         }
     }, [user, loadCart]);
 
@@ -108,26 +124,24 @@ export const CartProvider = ({ children }) => {
                 throw new Error('Producto no encontrado en el carrito');
             }
 
-            // Obtener stock actualizado directamente de la base de datos
-            const availableStock = await getProductStock(productId, sizeKey);
-            
-            if (availableStock <= 0) {
-                throw new Error('El producto está agotado');
-            }
-
             // Calcular la diferencia entre la cantidad actual y la nueva
             const quantityDifference = quantity - currentItem.quantity;
             
             if (quantityDifference > 0) {
                 // Si estamos aumentando la cantidad, verificar el stock disponible
+                const availableStock = await getProductStock(productId, sizeKey);
                 if (availableStock < quantityDifference) {
                     throw new Error(`No hay suficiente stock disponible. Solo quedan ${availableStock} unidades.`);
                 }
                 // Actualizar el inventario en la base de datos
-                await updateProductStock(productId, sizeKey, quantityDifference);
+                await updateDoc(doc(db, 'products', productId), {
+                    [`inventory.${sizeKey}`]: increment(-quantityDifference)
+                });
             } else if (quantityDifference < 0) {
-                // Si estamos reduciendo la cantidad, devolver al inventario
-                await updateProductStock(productId, sizeKey, quantityDifference);
+                // Si estamos reduciendo la cantidad, devolver al inventario la diferencia exacta
+                await updateDoc(doc(db, 'products', productId), {
+                    [`inventory.${sizeKey}`]: increment(Math.abs(quantityDifference))
+                });
             }
 
             // Actualizar el carrito
@@ -214,7 +228,7 @@ export const CartProvider = ({ children }) => {
             const itemToRemove = cart.find(item => item.size === sizeKey);
             
             if (itemToRemove) {
-                // Restaurar el inventario en la base de datos
+                // Restaurar el inventario en la base de datos con la cantidad exacta
                 const productRef = doc(db, 'products', productId);
                 await updateDoc(productRef, {
                     [`inventory.${sizeKey}`]: increment(itemToRemove.quantity)
@@ -232,25 +246,50 @@ export const CartProvider = ({ children }) => {
 
     const clearCartInDatabase = useCallback(async () => {
         if (!user) {
+            console.log('❌ No hay usuario autenticado');
             throw new Error('No hay usuario autenticado');
         }
 
         try {
             // Primero restaurar el stock de todos los productos en el carrito
-            console.log('Restaurando stock de productos...');
+            console.log('🔄 Restaurando stock de productos...');
+            console.log('📦 Productos en carrito antes de limpiar:', cart);
+            
+            if (cart.length === 0) {
+                console.log('⚠️ El carrito ya está vacío, no hay stock que restaurar');
+                return;
+            }
+
             const restoreStockPromises = cart.map(async (item) => {
                 const [productId, size] = item.size.split('__');
                 const productRef = doc(db, 'products', productId);
                 
-                console.log(`Restaurando ${item.quantity} unidades al producto ${productId} talla ${size}`);
-                return updateDoc(productRef, {
-                    [`inventory.${item.size}`]: increment(item.quantity)
+                console.log(`📥 Restaurando ${item.quantity} unidades al producto ${productId} talla ${size}`);
+                console.log(`🔍 Detalles del item:`, item);
+                
+                // Obtener el stock actual
+                const productDoc = await getDoc(productRef);
+                if (!productDoc.exists()) {
+                    console.error(`❌ Producto ${productId} no encontrado`);
+                    return;
+                }
+                
+                const currentStock = productDoc.data().inventory?.[item.size] || 0;
+                const newStock = currentStock + item.quantity;
+                
+                console.log(`📊 Stock actual: ${currentStock}, Nuevo stock: ${newStock}`);
+                
+                // Actualizar el stock
+                await updateDoc(productRef, {
+                    [`inventory.${item.size}`]: newStock
                 });
+                
+                console.log(`✅ Stock actualizado para ${productId} talla ${size}`);
             });
             
             // Esperar a que todas las actualizaciones de stock se completen
             await Promise.all(restoreStockPromises);
-            console.log('Stock restaurado exitosamente');
+            console.log('✅ Stock restaurado exitosamente');
 
             // Luego eliminar el carrito de la base de datos
             const userRef = doc(db, 'storeUsers', user.uid);
@@ -261,10 +300,10 @@ export const CartProvider = ({ children }) => {
 
             // Actualizar el estado local
             setCart([]);
-            console.log('Carrito eliminado en la base de datos y estado local actualizado');
+            console.log('✅ Carrito eliminado en la base de datos y estado local actualizado');
             return true;
         } catch (error) {
-            console.error('Error al eliminar el carrito en la base de datos:', error);
+            console.error('❌ Error al eliminar el carrito en la base de datos:', error);
             throw error;
         }
     }, [user, cart]);
@@ -276,6 +315,7 @@ export const CartProvider = ({ children }) => {
                 const [productId, size] = item.size.split('__');
                 const productRef = doc(db, 'products', productId);
                 
+                // Devolver exactamente la misma cantidad que estaba en el carrito
                 await updateDoc(productRef, {
                     [`inventory.${item.size}`]: increment(item.quantity)
                 });
@@ -294,6 +334,58 @@ export const CartProvider = ({ children }) => {
         }
     };
 
+    const clearCartForInactivity = useCallback(async () => {
+        if (!user) {
+            console.log('❌ No hay usuario autenticado');
+            return;
+        }
+
+        try {
+            // Obtener el carrito actual
+            const userRef = doc(db, 'storeUsers', user.uid);
+            const userDoc = await getDoc(userRef);
+            
+            if (!userDoc.exists()) {
+                console.log('❌ Usuario no encontrado');
+                return;
+            }
+
+            const userData = userDoc.data();
+            const cart = userData.cart || [];
+
+            // Restaurar el stock de cada producto en el carrito
+            for (const item of cart) {
+                const productRef = doc(db, 'products', item.productId);
+                
+                console.log(`📥 Restaurando ${item.quantity} unidades al producto ${item.productId} talla ${item.size}`);
+                
+                // Obtener el stock actual
+                const productDoc = await getDoc(productRef);
+                if (!productDoc.exists()) {
+                    console.error(`❌ Producto ${item.productId} no encontrado`);
+                    continue;
+                }
+
+                // Actualizar el stock de la talla específica
+                await updateDoc(productRef, {
+                    [`inventory.${item.size}`]: increment(item.quantity)
+                });
+            }
+            
+            // Limpiar el carrito en la base de datos
+            await updateDoc(userRef, {
+                cart: []
+            });
+
+            // Actualizar el estado local
+            setCart([]);
+            console.log('✅ Carrito limpiado por inactividad exitosamente');
+        } catch (error) {
+            console.error('❌ Error al limpiar el carrito por inactividad:', error);
+            throw error;
+        }
+    }, [user]);
+
     const getTotalItems = () => {
         return cart.reduce((total, item) => total + item.quantity, 0);
     };
@@ -310,6 +402,7 @@ export const CartProvider = ({ children }) => {
         updateQuantity,
         clearCart,
         clearCartInDatabase,
+        clearCartForInactivity,
         loadCart,
         getTotalItems,
         getTotalPrice

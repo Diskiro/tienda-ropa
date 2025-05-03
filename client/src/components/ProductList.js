@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetchProducts, fetchCategories } from '../data';
 import ProductCard from './ProductCard';
+import { FavoritesProvider } from '../context/FavoritesContext';
+import { Box, Typography, CircularProgress, Alert } from '@mui/material';
 
 const ProductList = () => {
     const [products, setProducts] = useState([]);
@@ -15,7 +17,17 @@ const ProductList = () => {
                     fetchProducts(),
                     fetchCategories()
                 ]);
-                setProducts(productsData);
+
+                // Filtrar productos que tienen al menos una talla con stock
+                const productsWithStock = productsData.filter(product => {
+                    if (!product.inventory) return false;
+                    
+                    // Sumar todo el stock del producto
+                    const totalStock = Object.values(product.inventory).reduce((sum, stock) => sum + stock, 0);
+                    return totalStock > 0;
+                });
+
+                setProducts(productsWithStock);
                 setCategories(categoriesData);
                 setLoading(false);
             } catch (err) {
@@ -27,15 +39,45 @@ const ProductList = () => {
         loadData();
     }, []);
 
-    if (loading) return <div>Cargando productos...</div>;
-    if (error) return <div>{error}</div>;
+    if (loading) {
+        return (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+            </Box>
+        );
+    }
+
+    if (error) {
+        return (
+            <Box sx={{ p: 2 }}>
+                <Alert severity="error">{error}</Alert>
+            </Box>
+        );
+    }
+
+    if (products.length === 0) {
+        return (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+                <Typography variant="h6" color="text.secondary">
+                    No hay productos disponibles en este momento
+                </Typography>
+            </Box>
+        );
+    }
 
     return (
-        <div className="product-list">
-            {products.map(product => (
-                <ProductCard key={product.id} product={product} />
-            ))}
-        </div>
+        <FavoritesProvider>
+            <Box sx={{ 
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                gap: 3,
+                p: 2
+            }}>
+                {products.map(product => (
+                    <ProductCard key={product.id} product={product} />
+                ))}
+            </Box>
+        </FavoritesProvider>
     );
 };
 

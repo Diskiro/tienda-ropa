@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { theme } from './theme';
@@ -33,8 +33,8 @@ function App() {
                         <Header />
                         <Routes>
                             <Route path="/" element={<HomePage />} />
-                            <Route path="/catalog" element={<CatalogPage />} />
-                            <Route path="/categories" element={<CategoriesPage />} />
+                            <Route path="/catalogo" element={<CatalogPage />} />
+                            <Route path="/categorias" element={<CategoriesPage />} />
                             <Route path="/producto/:id" element={<ProductPage />} />
                             <Route path="/cart" element={<CartPage />} />
                             <Route path="/checkout" element={<CheckoutPage />} />

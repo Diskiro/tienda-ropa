@@ -1,7 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { db } from '../firebase';
-import { collection, query, where, getDocs, addDoc } from 'firebase/firestore';
-import { auth } from '../firebase';
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { loadUserFromLocalStorage, saveUserToLocalStorage } from './auth/authService';
 
 const AuthContext = createContext();
 
@@ -11,220 +9,50 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
-    const [lastActivity, setLastActivity] = useState(Date.now());
-    const [onInactivityLogout, setOnInactivityLogout] = useState(null);
-    const inactivityIntervalRef = useRef(null);
+    const [cart, setCart] = useState([]);
 
-    // Función para actualizar la última actividad
-    const updateLastActivity = useCallback(() => {
-        const now = Date.now();
-        setLastActivity(now);
-        localStorage.setItem('lastActivity', now.toString());
-    }, []);
-
-    // Función para verificar la inactividad
-    const checkInactivity = useCallback(async () => {
-        const currentTime = Date.now();
-        const lastActivityLS = parseInt(localStorage.getItem('lastActivity') || currentTime);
-        const oneHour = 30 * 60 * 1000; // 30 minuto
-
-        if (currentTime - lastActivityLS > oneHour && user) {
-            // Limpiar el intervalo para evitar múltiples ejecuciones
-            if (inactivityIntervalRef.current) {
-                clearInterval(inactivityIntervalRef.current);
-                inactivityIntervalRef.current = null;
-            }
-
-            console.log('Iniciando proceso de cierre de sesión por inactividad');
-            try {
-                // Llamar a la función registrada que limpiará el carrito
-                if (onInactivityLogout) {
-                    await onInactivityLogout();
-                }
-                // Proceder con el cierre de sesión
-                await auth.signOut();
-                setUser(null);
-                saveUserToLocalStorage(null);
-                localStorage.removeItem('lastActivity');
-                setAlert({
-                    open: true,
-                    message: 'Tu sesión ha expirado por inactividad.',
-                    severity: 'warning'
-                });
-            } catch (error) {
-                console.error('Error durante el proceso de cierre de sesión:', error);
-                localStorage.setItem('lastActivity', currentTime.toString());
-                startInactivityCheck();
-            }
-        }
-    }, [user, onInactivityLogout]);
-
-    // Función para iniciar el chequeo de inactividad
-    const startInactivityCheck = useCallback(() => {
-        if (inactivityIntervalRef.current) {
-            clearInterval(inactivityIntervalRef.current);
-        }
-        inactivityIntervalRef.current = setInterval(checkInactivity, 1000);
-    }, [checkInactivity]);
-
-    // Efecto para manejar la actividad del usuario
+    // Cargar el usuario del localStorage al iniciar
     useEffect(() => {
-        if (user) {
-            const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
-            
-            events.forEach(event => {
-                window.addEventListener(event, updateLastActivity);
-            });
-            
-            startInactivityCheck();
-
-            return () => {
-                events.forEach(event => {
-                    window.removeEventListener(event, updateLastActivity);
-                });
-                if (inactivityIntervalRef.current) {
-                    clearInterval(inactivityIntervalRef.current);
-                    inactivityIntervalRef.current = null;
-                }
-            };
-        }
-    }, [user, updateLastActivity, startInactivityCheck]);
-
-    // Efecto para cargar el usuario inicial
-    useEffect(() => {
-        const storedUser = localStorage.getItem('user');
+        const storedUser = loadUserFromLocalStorage();
         if (storedUser) {
-            setUser(JSON.parse(storedUser));
+            setUser(storedUser);
         }
         setLoading(false);
     }, []);
 
-    const saveUserToLocalStorage = useCallback((userData) => {
-        if (userData) {
-            localStorage.setItem('user', JSON.stringify(userData));
-        } else {
-            localStorage.removeItem('user');
+    // Cargar el carrito del localStorage al iniciar
+    useEffect(() => {
+        const storedCart = localStorage.getItem('cart');
+        if (storedCart) {
+            setCart(JSON.parse(storedCart));
         }
     }, []);
 
-    const login = async (email, password) => {
-        try {
-            // Buscar el usuario en storeUsers
-            const usersQuery = query(
-                collection(db, 'storeUsers'),
-                where('email', '==', email)
-            );
-            const usersSnapshot = await getDocs(usersQuery);
-            
-            if (!usersSnapshot.empty) {
-                const userDoc = usersSnapshot.docs[0];
-                const userData = userDoc.data();
-                
-                // Verificar la contraseña
-                if (userData.password === password) {
-                    const userToStore = {
-                        uid: userDoc.id,
-                        email: userData.email,
-                        firstName: userData.firstName,
-                        lastName: userData.lastName,
-                        phone: userData.phone,
-                        metroStation: userData.metroStation,
-                        role: userData.role
-                    };
-                    
-                    setUser(userToStore);
-                    saveUserToLocalStorage(userToStore);
-                    setAlert({
-                        open: true,
-                        message: 'Inicio de sesión exitoso',
-                        severity: 'success'
-                    });
-                    return userToStore;
-                }
-            }
-
-            setAlert({
-                open: true,
-                message: 'Credenciales inválidas',
-                severity: 'error'
-            });
-            return null;
-        } catch (error) {
-            console.error('Error al iniciar sesión:', error);
-            setAlert({
-                open: true,
-                message: 'Error al iniciar sesión: ' + error.message,
-                severity: 'error'
-            });
-            return null;
+    // Guardar el carrito en localStorage cuando cambia
+    useEffect(() => {
+        if (cart.length > 0) {
+            localStorage.setItem('cart', JSON.stringify(cart));
         }
-    };
+    }, [cart]);
 
-    const register = async (userData) => {
+    const logout = async () => {
         try {
-            // Verificar si el email ya existe
-            const usersQuery = query(
-                collection(db, 'storeUsers'),
-                where('email', '==', userData.email)
-            );
-            const usersSnapshot = await getDocs(usersQuery);
-            
-            if (!usersSnapshot.empty) {
-                setAlert({
-                    open: true,
-                    message: 'El email ya está registrado',
-                    severity: 'error'
-                });
-                return null;
-            }
-
-            // Crear nuevo usuario en storeUsers
-            const newUser = {
-                ...userData,
-                createdAt: new Date().toISOString(),
-                role: 'customer'
-            };
-
-            const docRef = await addDoc(collection(db, 'storeUsers'), newUser);
-            
-            const userToStore = {
-                uid: docRef.id,
-                email: newUser.email,
-                firstName: newUser.firstName,
-                lastName: newUser.lastName,
-                phone: newUser.phone,
-                metroStation: newUser.metroStation,
-                role: newUser.role
-            };
-
-            setUser(userToStore);
-            saveUserToLocalStorage(userToStore);
+            setUser(null);
+            saveUserToLocalStorage(null);
+            localStorage.removeItem('cart');
+            setCart([]);
             setAlert({
                 open: true,
-                message: 'Registro exitoso',
+                message: 'Sesión cerrada correctamente',
                 severity: 'success'
             });
-            return userToStore;
         } catch (error) {
-            console.error('Error al registrar:', error);
             setAlert({
                 open: true,
-                message: 'Error al registrar: ' + error.message,
+                message: 'Error al cerrar sesión',
                 severity: 'error'
             });
-            return null;
         }
-    };
-
-    const logout = () => {
-        setUser(null);
-        saveUserToLocalStorage(null);
-        localStorage.removeItem('lastActivity');
-        setAlert({
-            open: true,
-            message: 'Sesión cerrada correctamente',
-            severity: 'success'
-        });
     };
 
     const closeAlert = () => {
@@ -233,13 +61,14 @@ export const AuthProvider = ({ children }) => {
 
     const value = {
         user,
+        setUser,
         loading,
-        login,
-        register,
-        logout,
+        cart,
+        setCart,
         alert,
+        setAlert,
         closeAlert,
-        setOnInactivityLogout
+        logout
     };
 
     return (
