@@ -16,9 +16,14 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { 
+  Edit as EditIcon, 
+  Delete as DeleteIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon
+} from '@mui/icons-material';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 
 function Categories() {
   const [categories, setCategories] = useState([]);
@@ -28,6 +33,7 @@ function Categories() {
     name: '',
     description: '',
     image: '',
+    order: 0,
   });
 
   useEffect(() => {
@@ -35,7 +41,8 @@ function Categories() {
   }, []);
 
   const fetchCategories = async () => {
-    const querySnapshot = await getDocs(collection(db, 'categories'));
+    const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+    const querySnapshot = await getDocs(q);
     const categoriesList = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -53,6 +60,7 @@ function Categories() {
         name: '',
         description: '',
         image: '',
+        order: categories.length,
       });
     }
     setOpen(true);
@@ -96,6 +104,34 @@ function Categories() {
     }
   };
 
+  const moveCategory = async (categoryId, direction) => {
+    const currentIndex = categories.findIndex(cat => cat.id === categoryId);
+    if (
+      (direction === 'up' && currentIndex === 0) ||
+      (direction === 'down' && currentIndex === categories.length - 1)
+    ) {
+      return;
+    }
+
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const categoryToMove = categories[currentIndex];
+    const categoryToSwap = categories[newIndex];
+
+    try {
+      // Actualizar el orden de ambas categorías
+      await updateDoc(doc(db, 'categories', categoryToMove.id), {
+        order: categoryToSwap.order
+      });
+      await updateDoc(doc(db, 'categories', categoryToSwap.id), {
+        order: categoryToMove.order
+      });
+
+      fetchCategories();
+    } catch (error) {
+      console.error('Error al mover la categoría:', error);
+    }
+  };
+
   return (
     <div>
       <Typography variant="h4" gutterBottom>
@@ -113,6 +149,7 @@ function Categories() {
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Orden</TableCell>
               <TableCell>Nombre</TableCell>
               <TableCell>Descripción</TableCell>
               <TableCell>Imagen</TableCell>
@@ -122,6 +159,20 @@ function Categories() {
           <TableBody>
             {categories.map((category) => (
               <TableRow key={category.id}>
+                <TableCell>
+                  <IconButton 
+                    onClick={() => moveCategory(category.id, 'up')}
+                    disabled={categories.indexOf(category) === 0}
+                  >
+                    <ArrowUpwardIcon />
+                  </IconButton>
+                  <IconButton 
+                    onClick={() => moveCategory(category.id, 'down')}
+                    disabled={categories.indexOf(category) === categories.length - 1}
+                  >
+                    <ArrowDownwardIcon />
+                  </IconButton>
+                </TableCell>
                 <TableCell>{category.name}</TableCell>
                 <TableCell>{category.description}</TableCell>
                 <TableCell>
