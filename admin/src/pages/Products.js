@@ -27,13 +27,15 @@ import {
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon } from '@mui/icons-material';
 import { db } from '../firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import DownloadIcon from '@mui/icons-material/Download';
+import SearchBar from '../components/SearchBar/SearchBar';
 
 const AVAILABLE_SIZES = ['L', 'XL', '1XL', '2XL', '3XL', '4XL', '5XL'];
 
 function Products() {
   const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [open, setOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
@@ -47,6 +49,8 @@ function Products() {
     inventory: {}
   });
   const [newImage, setNewImage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchProducts();
@@ -64,6 +68,8 @@ function Products() {
       };
     });
     setProducts(productsList);
+    setFilteredProducts(productsList);
+    setLoading(false);
   };
 
   const fetchCategories = async () => {
@@ -258,6 +264,33 @@ function Products() {
     link.click();
   };
 
+  // Función para filtrar productos
+  const handleSearch = (event) => {
+    const searchValue = event.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+
+    if (!searchValue) {
+      setFilteredProducts(products);
+      return;
+    }
+
+    const filtered = products.filter(product => {
+      const searchFields = [
+        product.name,
+        product.description,
+        product.category,
+        product.id,
+        product.sku
+      ];
+
+      return searchFields.some(field => 
+        field && field.toString().toLowerCase().includes(searchValue)
+      );
+    });
+
+    setFilteredProducts(filtered);
+  };
+
   return (
     <div>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
@@ -282,6 +315,11 @@ function Products() {
           </Button>
         </Box>
       </Box>
+      <SearchBar
+        searchTerm={searchTerm}
+        onSearch={handleSearch}
+        placeholder="Buscar por nombre, descripción, categoría, ID o SKU..."
+      />
       <Button
         variant="contained"
         color="primary"
@@ -305,7 +343,7 @@ function Products() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {products.map((product) => (
+            {filteredProducts.map((product) => (
               <TableRow key={product.id}>
                 <TableCell>{product.name}</TableCell>
                 <TableCell>${product.price}</TableCell>
