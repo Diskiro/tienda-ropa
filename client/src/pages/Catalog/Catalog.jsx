@@ -4,7 +4,7 @@ import { Container, Grid, Typography, Box, CircularProgress, Button } from '@mui
 import ProductCard from '../../components/ProductCard/ProductCard';
 import CategoryCard from '../../components/CategoryCard/CategoryCard';
 import { db } from '../../firebase';
-import { collection, getDocs, query, where, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore';
 import { normalizeCategoryName } from '../../utils/categoryUtils';
 import { formatPrice } from '../../utils/priceUtils';
 import styles from './Catalog.module.css';
@@ -25,7 +25,8 @@ export default function CatalogPage() {
                 
                 if (!categoryFromUrl) {
                     // Si no hay categoría, cargar todas las categorías
-                    const categoriesSnapshot = await getDocs(collection(db, 'categories'));
+                    const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+                    const categoriesSnapshot = await getDocs(q);
                     const categoriesList = categoriesSnapshot.docs.map(doc => ({
                         id: doc.id,
                         ...doc.data()

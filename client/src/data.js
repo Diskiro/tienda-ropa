@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 export const fetchProducts = async () => {
     try {
@@ -16,7 +16,8 @@ export const fetchProducts = async () => {
 
 export const fetchCategories = async () => {
     try {
-        const categoriesSnapshot = await getDocs(collection(db, 'categories'));
+        const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+        const categoriesSnapshot = await getDocs(q);
         return categoriesSnapshot.docs.map(doc => ({
             id: doc.id,
             ...doc.data()

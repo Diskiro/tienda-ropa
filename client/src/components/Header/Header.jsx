@@ -18,7 +18,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import './Header.css';
 import InactivityHandler from '../InactivityHandler/InactivityHandler';
 
@@ -34,7 +34,8 @@ const Header = () => {
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const querySnapshot = await getDocs(collection(db, 'categories'));
+                const q = query(collection(db, 'categories'), orderBy('order', 'asc'));
+                const querySnapshot = await getDocs(q);
                 const categoriesList = querySnapshot.docs.map(doc => ({
                     id: doc.id,
                     ...doc.data()
