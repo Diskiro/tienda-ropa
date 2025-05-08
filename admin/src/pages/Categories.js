@@ -15,6 +15,7 @@ import {
   DialogActions,
   TextField,
   Typography,
+  Box,
 } from '@mui/material';
 import { 
   Edit as EditIcon, 
@@ -24,9 +25,11 @@ import {
 } from '@mui/icons-material';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import SearchBar from '../components/SearchBar/SearchBar';
 
 function Categories() {
   const [categories, setCategories] = useState([]);
+  const [filteredCategories, setFilteredCategories] = useState([]);
   const [open, setOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [formData, setFormData] = useState({
@@ -35,6 +38,8 @@ function Categories() {
     image: '',
     order: 0,
   });
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     fetchCategories();
@@ -48,6 +53,8 @@ function Categories() {
       ...doc.data()
     }));
     setCategories(categoriesList);
+    setFilteredCategories(categoriesList);
+    setLoading(false);
   };
 
   const handleOpen = (category = null) => {
@@ -132,11 +139,43 @@ function Categories() {
     }
   };
 
+  // Función para filtrar categorías
+  const handleSearch = (event) => {
+    const searchValue = event.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+
+    if (!searchValue) {
+      setFilteredCategories(categories);
+      return;
+    }
+
+    const filtered = categories.filter(category => {
+      const searchFields = [
+        category.name,
+        category.description,
+        category.id
+      ];
+
+      return searchFields.some(field => 
+        field && field.toString().toLowerCase().includes(searchValue)
+      );
+    });
+
+    setFilteredCategories(filtered);
+  };
+
   return (
     <div>
       <Typography variant="h4" gutterBottom>
         Categorías
       </Typography>
+
+      <SearchBar
+        searchTerm={searchTerm}
+        onSearch={handleSearch}
+        placeholder="Buscar por nombre, descripción o ID..."
+      />
+
       <Button
         variant="contained"
         color="primary"
@@ -157,7 +196,7 @@ function Categories() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {categories.map((category) => (
+            {filteredCategories.map((category) => (
               <TableRow key={category.id}>
                 <TableCell>
                   <IconButton 

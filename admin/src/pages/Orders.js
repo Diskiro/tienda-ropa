@@ -27,14 +27,17 @@ import { collection, getDocs, query, orderBy, doc, updateDoc, onSnapshot, getDoc
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchBar from '../components/SearchBar/SearchBar';
 
 function Orders() {
   const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [expandedRowId, setExpandedRowId] = useState(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expiredOrders, setExpiredOrders] = useState(new Set());
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Función para verificar si una orden debe ser cancelada por tiempo
   const checkOrderExpiration = async (order) => {
@@ -84,6 +87,7 @@ function Orders() {
             ...doc.data()
           }));
           setOrders(ordersData);
+          setFilteredOrders(ordersData);
           setLoading(false);
           retryCount = 0;
 
@@ -217,11 +221,45 @@ function Orders() {
     }
   };
 
+  // Función para filtrar órdenes
+  const handleSearch = (event) => {
+    const searchValue = event.target.value.toLowerCase();
+    setSearchTerm(searchValue);
+
+    if (!searchValue) {
+      setFilteredOrders(orders);
+      return;
+    }
+
+    const filtered = orders.filter(order => {
+      const searchFields = [
+        order.id,
+        order.customerName || order.customer?.name || '',
+        order.customerPhone || order.customer?.phone || order.phone || '',
+        order.status || '',
+        order.customerEmail || order.customer?.email || order.email || ''
+      ];
+
+      return searchFields.some(field => 
+        field && field.toString().toLowerCase().includes(searchValue)
+      );
+    });
+
+    setFilteredOrders(filtered);
+  };
+
   return (
     <div>
       <Typography variant="h4" gutterBottom>
         Órdenes
       </Typography>
+      
+      <SearchBar
+        searchTerm={searchTerm}
+        onSearch={handleSearch}
+        placeholder="Buscar por ID, nombre, teléfono, email o estado..."
+      />
+
       {loading ? (
         <Typography>Cargando órdenes...</Typography>
       ) : (
@@ -242,7 +280,7 @@ function Orders() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <React.Fragment key={order.id}>
                   <TableRow sx={{ '& > *': { borderBottom: 'unset' } }}>
                     <TableCell>

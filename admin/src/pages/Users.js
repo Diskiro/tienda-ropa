@@ -21,15 +21,18 @@ import {
     CircularProgress
 } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { collection, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
+import SearchBar from '../components/SearchBar/SearchBar';
 
 export default function Users() {
     const [users, setUsers] = useState([]);
+    const [filteredUsers, setFilteredUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [openDialog, setOpenDialog] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
     const [alert, setAlert] = useState({ open: false, message: '', severity: 'info' });
+    const [searchTerm, setSearchTerm] = useState('');
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -55,6 +58,7 @@ export default function Users() {
             }));
             console.log('Usuarios encontrados:', usersList);
             setUsers(usersList);
+            setFilteredUsers(usersList);
         } catch (error) {
             console.error('Error fetching users:', error);
             setAlert({
@@ -85,6 +89,7 @@ export default function Users() {
             try {
                 await deleteDoc(doc(db, 'storeUsers', userId));
                 setUsers(users.filter(user => user.id !== userId));
+                setFilteredUsers(filteredUsers.filter(user => user.id !== userId));
                 setAlert({
                     open: true,
                     message: 'Usuario eliminado correctamente',
@@ -105,6 +110,9 @@ export default function Users() {
         try {
             await updateDoc(doc(db, 'storeUsers', selectedUser.id), formData);
             setUsers(users.map(user => 
+                user.id === selectedUser.id ? { ...user, ...formData } : user
+            ));
+            setFilteredUsers(users.map(user => 
                 user.id === selectedUser.id ? { ...user, ...formData } : user
             ));
             setOpenDialog(false);
@@ -135,6 +143,34 @@ export default function Users() {
         });
     };
 
+    // Función para filtrar usuarios
+    const handleSearch = (event) => {
+        const searchValue = event.target.value.toLowerCase();
+        setSearchTerm(searchValue);
+
+        if (!searchValue) {
+            setFilteredUsers(users);
+            return;
+        }
+
+        const filtered = users.filter(user => {
+            const searchFields = [
+                user.firstName,
+                user.lastName,
+                user.email,
+                user.phone,
+                user.id,
+                user.role
+            ];
+
+            return searchFields.some(field => 
+                field && field.toString().toLowerCase().includes(searchValue)
+            );
+        });
+
+        setFilteredUsers(filtered);
+    };
+
     if (loading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -149,6 +185,12 @@ export default function Users() {
                 Gestión de Usuarios de la Tienda
             </Typography>
             
+            <SearchBar
+                searchTerm={searchTerm}
+                onSearch={handleSearch}
+                placeholder="Buscar por nombre, email, teléfono, ID o rol..."
+            />
+
             <TableContainer component={Paper}>
                 <Table>
                     <TableHead>
@@ -162,7 +204,7 @@ export default function Users() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {users.map((user) => (
+                        {filteredUsers.map((user) => (
                             <TableRow key={user.id}>
                                 <TableCell>{`${user.firstName || ''} ${user.lastName || ''}`}</TableCell>
                                 <TableCell>{user.email}</TableCell>
