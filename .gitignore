@@ -154,3 +154,8 @@ node_modules/
 *.local
 
 admin/src/firebase.js
+
+# Jest
+/coverage
+.jest-*
+jest-results.json
