@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Container, Grid, Typography, Box, CircularProgress, Button } from '@mui/material';
+import { Container, Grid, Typography, Box, CircularProgress, Button, Pagination } from '@mui/material';
 import ProductCard from '../../components/ProductCard/ProductCard';
 import CategoryCard from '../../components/CategoryCard/CategoryCard';
 import { db } from '../../firebase';
-import { collection, getDocs, query, where, limit, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { normalizeCategoryName } from '../../utils/categoryUtils';
 import { formatPrice } from '../../utils/priceUtils';
 import styles from './Catalog.module.css';
@@ -15,7 +15,8 @@ export default function CatalogPage() {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [showAll, setShowAll] = useState(false);
+    const [page, setPage] = useState(1);
+    const productsPerPage = 12;
 
     useEffect(() => {
         const fetchData = async () => {
@@ -40,8 +41,7 @@ export default function CatalogPage() {
                 const normalizedCategory = normalizeCategoryName(categoryFromUrl);
                 const productsQuery = query(
                     collection(db, 'products'),
-                    where('category', '==', normalizedCategory),
-                    limit(showAll ? 100 : 5)
+                    where('category', '==', normalizedCategory)
                 );
 
                 const querySnapshot = await getDocs(productsQuery);
@@ -61,6 +61,7 @@ export default function CatalogPage() {
                 });
 
                 setProducts(productsWithStock);
+                setPage(1); // Resetear la página cuando cambia la categoría
             } catch (error) {
                 console.error('Error al obtener los datos:', error);
             } finally {
@@ -69,7 +70,18 @@ export default function CatalogPage() {
         };
 
         fetchData();
-    }, [searchParams, showAll]);
+    }, [searchParams]);
+
+    // Calcular los productos para la página actual
+    const indexOfLastProduct = page * productsPerPage;
+    const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
+    const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct);
+    const totalPages = Math.ceil(products.length / productsPerPage);
+
+    const handlePageChange = (event, value) => {
+        setPage(value);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     if (loading) {
         return (
@@ -108,8 +120,8 @@ export default function CatalogPage() {
                 </Typography>
 
                 <Grid container spacing={3} className={styles.productsGrid}>
-                    {products.length > 0 ? (
-                        products.map(product => (
+                    {currentProducts.length > 0 ? (
+                        currentProducts.map(product => (
                             <Grid item xs={12} sm={6} md={4} lg={3} key={product.id} className={styles.productItem}>
                                 <ProductCard product={product} />
                             </Grid>
@@ -123,15 +135,17 @@ export default function CatalogPage() {
                     )}
                 </Grid>
 
-                {products.length > 5 && !showAll && (
-                    <Box sx={{ mt: 4, textAlign: 'center' }}>
-                        <Button
-                            variant="outlined"
+                {totalPages > 1 && (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4, mb: 4 }}>
+                        <Pagination 
+                            count={totalPages} 
+                            page={page} 
+                            onChange={handlePageChange}
                             color="primary"
-                            onClick={() => setShowAll(true)}
-                        >
-                            Ver más productos
-                        </Button>
+                            size="large"
+                            showFirstButton 
+                            showLastButton
+                        />
                     </Box>
                 )}
             </Container>

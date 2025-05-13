@@ -67,3 +67,24 @@
 .loadMoreContainer {
   /* Estilos para el contenedor del botón de cargar más */
 }
+
+.paginationContainer {
+    display: flex;
+    justify-content: center;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+
+.paginationContainer :global(.MuiPaginationItem-root) {
+    font-size: 1.1rem;
+    margin: 0 4px;
+}
+
+.paginationContainer :global(.MuiPaginationItem-root.Mui-selected) {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.paginationContainer :global(.MuiPaginationItem-root.Mui-selected:hover) {
+    background-color: var(--primary-color-dark);
+}

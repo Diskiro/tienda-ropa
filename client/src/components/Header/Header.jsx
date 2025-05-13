@@ -101,7 +101,7 @@ const Header = () => {
                             <Box sx={{ flex: '1 1 auto', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                                 <Link to="/" className="logo-link" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                     <img
-                                        src="/CharysBoutique.jpeg"
+                                        src="/CharysBoutique.jpg"
                                         alt="Chary's Boutique"
                                         style={{ width: '65px', height: '65px', objectFit: 'contain' }}
                                     />
@@ -134,7 +134,7 @@ const Header = () => {
                         <>
                 <Link to="/" className="logo-link" style={{ display: 'flex', alignItems: 'center' }}>
                     <img
-                        src="/CharysBoutique.jpeg"
+                        src="/CharysBoutique.jpg"
                         alt="Chary's Boutique"
                         style={{ width: '100px', height: '100px', objectFit: 'contain', marginRight: 8 }}
                     />
