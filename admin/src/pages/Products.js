@@ -23,15 +23,115 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Grid
+  Grid,
+  Card,
+  CardMedia,
+  CardActionArea
 } from '@mui/material';
-import { Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon } from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Close as CloseIcon, DragIndicator as DragIcon } from '@mui/icons-material';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  horizontalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { db } from '../firebase';
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
 import DownloadIcon from '@mui/icons-material/Download';
 import SearchBar from '../components/SearchBar/SearchBar';
 
 const AVAILABLE_SIZES = ['L', 'XL', '1XL', '2XL', '3XL', '4XL', '5XL'];
+
+function SortableImage({ image, index, onRemove }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: image });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1 : 0
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        width: 100,
+        height: 100,
+        position: 'relative',
+        '&:hover .delete-button': {
+          opacity: 1
+        },
+        cursor: 'grab'
+      }}
+    >
+      <CardActionArea {...attributes} {...listeners}>
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            zIndex: 1,
+            bgcolor: 'rgba(0,0,0,0.5)',
+            color: 'white',
+            p: 0.5,
+            borderRadius: '4px 0 4px 0'
+          }}
+        >
+          <DragIcon />
+        </Box>
+        <CardMedia
+          component="img"
+          image={image}
+          alt={`Imagen ${index + 1}`}
+          sx={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover'
+          }}
+        />
+        <IconButton
+          className="delete-button"
+          onClick={() => onRemove(image)}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bgcolor: 'rgba(0,0,0,0.5)',
+            color: 'white',
+            opacity: 0,
+            transition: 'opacity 0.2s',
+            '&:hover': {
+              bgcolor: 'rgba(0,0,0,0.7)',
+              color: 'white'
+            }
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
+      </CardActionArea>
+    </Card>
+  );
+}
 
 function Products() {
   const [products, setProducts] = useState([]);
@@ -51,6 +151,13 @@ function Products() {
   const [newImage, setNewImage] = useState('');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchProducts();
@@ -133,11 +240,19 @@ function Products() {
   };
 
   const handleAddImage = () => {
-    if (newImage && !formData.images.includes(newImage)) {
-      setFormData({
-        ...formData,
-        images: [...formData.images, newImage],
-      });
+    if (!newImage.trim()) return;
+
+    // Dividir las URLs por comas o saltos de línea
+    const urls = newImage
+      .split(/[,\n]/)
+      .map(url => url.trim())
+      .filter(url => url && !formData.images.includes(url));
+
+    if (urls.length > 0) {
+      setFormData(prevData => ({
+        ...prevData,
+        images: [...prevData.images, ...urls]
+      }));
       setNewImage('');
     }
   };
@@ -147,6 +262,22 @@ function Products() {
       ...formData,
       images: formData.images.filter(img => img !== imageToRemove),
     });
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      setFormData((prevData) => {
+        const oldIndex = prevData.images.indexOf(active.id);
+        const newIndex = prevData.images.indexOf(over.id);
+        
+        return {
+          ...prevData,
+          images: arrayMove(prevData.images, oldIndex, newIndex)
+        };
+      });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -424,27 +555,57 @@ function Products() {
             <Typography variant="subtitle1" gutterBottom>
               Imágenes
             </Typography>
-            <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1 }}>
               <TextField
                 fullWidth
-                label="URL de la imagen"
+                label="URLs de las imágenes"
                 value={newImage}
                 onChange={(e) => setNewImage(e.target.value)}
+                multiline
+                rows={3}
+                placeholder="Ingresa las URLs de las imágenes separadas por comas o saltos de línea"
+                helperText="Puedes agregar múltiples URLs separadas por comas o saltos de línea"
               />
-              <Button onClick={handleAddImage} variant="contained">
-                Agregar
+              <Button 
+                onClick={handleAddImage} 
+                variant="contained"
+                disabled={!newImage.trim()}
+              >
+                Agregar Imágenes
               </Button>
             </Box>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {formData.images.map((image, index) => (
-                <Chip
-                  key={index}
-                  label={`Imagen ${index + 1}`}
-                  onDelete={() => handleRemoveImage(image)}
-                  deleteIcon={<CloseIcon />}
-                />
-              ))}
-            </Box>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={formData.images}
+                strategy={horizontalListSortingStrategy}
+              >
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 1,
+                    minHeight: '100px',
+                    p: 1,
+                    border: '1px dashed #ccc',
+                    borderRadius: 1,
+                    backgroundColor: '#fafafa'
+                  }}
+                >
+                  {formData.images.map((image, index) => (
+                    <SortableImage
+                      key={image}
+                      image={image}
+                      index={index}
+                      onRemove={handleRemoveImage}
+                    />
+                  ))}
+                </Box>
+              </SortableContext>
+            </DndContext>
           </Box>
           <FormControl fullWidth margin="dense">
             <InputLabel>Categoría</InputLabel>
