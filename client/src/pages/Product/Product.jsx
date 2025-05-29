@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useNavigate } from 'react-router-dom';
 import { FavoritesProvider } from '../../context/FavoritesContext';
+import ShareButton from '../../components/ShareButton/ShareButton';
 
 const ProductPageContent = () => {
     const { id } = useParams();
@@ -402,6 +403,10 @@ const ProductPageContent = () => {
                         >
                             {isFavorite(product.id) ? <Favorite /> : <FavoriteBorder />}
                         </IconButton>
+                        <ShareButton 
+                            productUrl={`${window.location.origin}/producto/${product.id}`}
+                            productName={product.name}
+                        />
                         <Button
                             variant="contained"
                             size="large"
@@ -412,7 +417,7 @@ const ProductPageContent = () => {
                         >
                             {maxQuantity === 0 ? 'Sin stock' : 'Añadir al carrito'}
                         </Button>
-                        </Box>
+                    </Box>
                     </Box>
                 </Grid>
             </Grid>

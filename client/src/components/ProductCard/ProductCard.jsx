@@ -25,6 +25,7 @@ import PropTypes from 'prop-types';
 import styles from './ProductCard.module.css';
 import { db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import ShareButton from '../ShareButton/ShareButton';
 
 export default function ProductCard({ product: initialProduct }) {
     const navigate = useNavigate();
@@ -213,6 +214,10 @@ export default function ProductCard({ product: initialProduct }) {
                         >
                             {isFavorite(product.id) ? <Favorite /> : <FavoriteBorder />}
                         </IconButton>
+                        <ShareButton 
+                            productUrl={`${window.location.origin}/producto/${product.id}`}
+                            productName={product.name}
+                        />
                         <Button
                             variant="contained"
                             startIcon={<AddShoppingCart />}
