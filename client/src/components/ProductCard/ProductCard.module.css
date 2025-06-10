@@ -43,7 +43,7 @@
 
 .title {
   font-size: 1rem;
-  font-weight: 500;
+  font-weight: 600!important;
   margin-bottom: 0.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -82,8 +82,13 @@
 }
 
 .buttonContainer {
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.addToCartButton {
+  grid-column-start: 1;
+  grid-column-end: 3;
 }
 
 .addToCartButton {

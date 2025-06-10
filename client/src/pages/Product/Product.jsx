@@ -206,7 +206,7 @@ const ProductPageContent = () => {
         .map(([sizeKey]) => sizeKey.split('__')[1])
         .sort((a, b) => {
             // Ordenar las tallas de manera lógica
-            const sizeOrder = { 'L': 1, 'XL': 2, '1XL': 3, '2XL': 4, '3XL': 5, '4XL': 6, '5XL': 7 };
+            const sizeOrder = { 'unitalla': 0, 'L': 1, 'XL': 2, '1XL': 3, '2XL': 4, '3XL': 5, '4XL': 6, '5XL': 7 };
             return sizeOrder[a] - sizeOrder[b];
         });
 
@@ -337,7 +337,13 @@ const ProductPageContent = () => {
                     <Typography variant="h5" color="primary" gutterBottom>
                         {formattedPrice}
                     </Typography>
-                    <Typography variant="body1" paragraph>
+                    <Typography 
+                        variant="body1" 
+                        paragraph 
+                        sx={{ 
+                            whiteSpace: 'pre-line'
+                        }}
+                    >
                         {product.description}
                     </Typography>
 
