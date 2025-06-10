@@ -64,7 +64,7 @@ export default function ProductCard({ product: initialProduct }) {
         .map(([sizeKey]) => sizeKey.split('__')[1])
         .sort((a, b) => {
             // Ordenar las tallas de manera lógica
-            const sizeOrder = { 'L': 1, 'XL': 2, '1XL': 3, '2XL': 4, '3XL': 5, '4XL': 6, '5XL': 7 };
+            const sizeOrder = { 'unitalla': 0, 'L': 1, 'XL': 2, '1XL': 3, '2XL': 4, '3XL': 5, '4XL': 6, '5XL': 7 };
             return sizeOrder[a] - sizeOrder[b];
         });
 
@@ -172,6 +172,9 @@ export default function ProductCard({ product: initialProduct }) {
                 </Typography>
                 <Typography 
                     className={styles.description}
+                    sx={{ 
+                        whiteSpace: 'pre-line'
+                    }}
                 >
                     {product.description}
                 </Typography>

@@ -51,7 +51,7 @@ import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, orderBy 
 import DownloadIcon from '@mui/icons-material/Download';
 import SearchBar from '../components/SearchBar/SearchBar';
 
-const AVAILABLE_SIZES = ['L', 'XL', '1XL', '2XL', '3XL', '4XL', '5XL'];
+const AVAILABLE_SIZES = ['unitalla', 'L', 'XL', '1XL', '2XL', '3XL', '4XL', '5XL'];
 
 function SortableImage({ image, index, onRemove }) {
   const {
@@ -282,6 +282,25 @@ function Products() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validar campos requeridos
+    if (!formData.name.trim()) {
+      alert('El nombre del producto es obligatorio');
+      return;
+    }
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      alert('El precio del producto es obligatorio y debe ser mayor a 0');
+      return;
+    }
+    if (!formData.images || formData.images.length === 0) {
+      alert('Debe agregar al menos una imagen al producto');
+      return;
+    }
+    if (!formData.category) {
+      alert('La categoría del producto es obligatoria');
+      return;
+    }
+
     try {
       const productData = {
         ...formData,
@@ -531,6 +550,9 @@ function Products() {
             fullWidth
             value={formData.name}
             onChange={handleChange}
+            required
+            error={!formData.name.trim()}
+            helperText={!formData.name.trim() ? "El nombre es obligatorio" : ""}
           />
           <TextField
             margin="dense"
@@ -540,6 +562,9 @@ function Products() {
             fullWidth
             value={formData.price}
             onChange={handleChange}
+            required
+            error={!formData.price || parseFloat(formData.price) <= 0}
+            helperText={(!formData.price || parseFloat(formData.price) <= 0) ? "El precio es obligatorio y debe ser mayor a 0" : ""}
           />
           <TextField
             margin="dense"
@@ -607,7 +632,7 @@ function Products() {
               </SortableContext>
             </DndContext>
           </Box>
-          <FormControl fullWidth margin="dense">
+          <FormControl fullWidth margin="dense" required error={!formData.category}>
             <InputLabel>Categoría</InputLabel>
             <Select
               name="category"
@@ -624,6 +649,11 @@ function Products() {
                 </MenuItem>
               ))}
             </Select>
+            {!formData.category && (
+              <Typography color="error" variant="caption">
+                La categoría es obligatoria
+              </Typography>
+            )}
           </FormControl>
           <FormControlLabel
             control={
