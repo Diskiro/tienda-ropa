@@ -33,7 +33,11 @@ export default function ProductCard({ product: initialProduct }) {
     const { user } = useAuth();
     const { isFavorite, addToFavorites, removeFromFavorites } = useFavorites();
     const [selectedSize, setSelectedSize] = useState('');
-    const [product, setProduct] = useState(initialProduct);
+    const [product, setProduct] = useState({
+        ...initialProduct,
+        images: Array.isArray(initialProduct.images) ? initialProduct.images : [],
+        inventory: initialProduct.inventory || {}
+    });
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
@@ -46,7 +50,13 @@ export default function ProductCard({ product: initialProduct }) {
             try {
                 const productDoc = await getDoc(doc(db, 'products', initialProduct.id));
                 if (productDoc.exists()) {
-                    setProduct({ id: productDoc.id, ...productDoc.data() });
+                    const data = productDoc.data();
+                    setProduct({ 
+                        id: productDoc.id, 
+                        ...data,
+                        images: Array.isArray(data.images) ? data.images : [],
+                        inventory: data.inventory || {}
+                    });
                 }
             } catch (error) {
                 console.error('Error al actualizar el stock:', error);
@@ -162,6 +172,9 @@ export default function ProductCard({ product: initialProduct }) {
                     alt={product.name}
                     className={styles.productImage}
                     onClick={() => navigate(`/producto/${product.id}`)}
+                    onError={(e) => {
+                        e.target.src = '/assets/placeholder.jpg';
+                    }}
                 />
             </Box>
             <CardContent className={styles.content}>
